@@ -21,7 +21,7 @@ from infernux.engine.ui.panel_registry import editor_panel
 )
 class GitIntegrationPanel(EditorPanel):
     def __init__(self) -> None:
-        super().__init__("Git Integration", "wokrlie.git_integration")
+        super().__init__("Git Integration", "wokrlie.git_integration.panel")
 
     def _intial_size(self) -> tuple[float, float]:
         return 420.0, 240.0
