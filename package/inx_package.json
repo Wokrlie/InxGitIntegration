@@ -1,8 +1,8 @@
 {
   "$schema": "infernux.inxpackage.source",
-  "reference": "your-studio/example-plugin",
-  "name": "Example Plugin",
+  "reference": "wokrlie/git_integration",
+  "name": "Git Integration",
   "version": "0.1.0",
   "engine": ">=0.4.1,<0.5",
-  "intro": "A minimal Infernux runtime and editor extension."
+  "intro": "A simple git integration for infernux engine"
 }
