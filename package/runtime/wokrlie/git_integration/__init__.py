@@ -1,5 +1,5 @@
 """Public runtime surface for the example plugin."""
 
-from .component import ExampleRotator
+from .component import Null
 
-__all__ = ["ExampleRotator"]
+__all__ = ["Null"]
