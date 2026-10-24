@@ -21,7 +21,7 @@ class PackageValidationTests(unittest.TestCase):
         self.package = self.root / "package"
         self.package.mkdir()
         self.manifest = {
-            "reference": "test/hello", "name": "Hello", "version": "0.1.0",
+            "reference": "test/hello", "name": "Hello", "version": "0.1.1",
             "engine": ">=0.4,<0.5",
         }
         self.write_manifest()
