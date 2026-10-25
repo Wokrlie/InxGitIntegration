@@ -10,6 +10,7 @@
 - 提交流程：持久化提交消息缓冲区、空消息校验，以及提交后立即刷新状态。
 - 手动刷新按钮，可绕过节流间隔强制执行 `git status`。
 - 双状态文件（如 `AM`）现在会同时出现在「Staged Changes」与「Changes」中，与 `git status` 的行为一致。
+### 计划
 - 分支显示与切换。
 - 文件状态着色（Modified / Added / Deleted / Untracked）。
 - 未暂存文件的「放弃更改」（Discard changes）操作。
