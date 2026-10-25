@@ -2,18 +2,12 @@
   "$schema": "infernux.editor_translations",
   "locales": {
     "en": {
-      "wokrlie.git_integration.menu_diagnostics": "Diagnostics",
-      "wokrlie.git_integration.menu_live": "Live",
-      "wokrlie.git_integration.menu_root": "Example Plugin",
-      "wokrlie.git_integration.menu_tools": "Tools",
-      "wokrlie.git_integration.panel_title": "Example Plugin"
+      "wokrlie.git_integration.menu_root": "Git Integration",
+      "wokrlie.git_integration.panel_title": "Git Integration"
     },
     "zh": {
-      "wokrlie.git_integration.menu_diagnostics": "诊断",
-      "wokrlie.git_integration.menu_live": "实时",
-      "wokrlie.git_integration.menu_root": "示例插件",
-      "wokrlie.git_integration.menu_tools": "工具",
-      "wokrlie.git_integration.panel_title": "示例插件"
+      "wokrlie.git_integration.menu_root": "Git集成",
+      "wokrlie.git_integration.panel_title": "Git集成"
     }
   }
 }
