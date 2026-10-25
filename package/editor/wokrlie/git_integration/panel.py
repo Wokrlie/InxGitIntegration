@@ -27,6 +27,7 @@ class GitIntegrationPanel(EditorPanel):
         self.is_repo_initialized: bool = False
         self.files_status_list: dict[str, str] = {}
 
+        self._commit_message: str = ""
         self._last_refresh: float = 0.0
         self._refresh_interval: float = 1.0
         self._git_checked: bool = False
@@ -65,61 +66,103 @@ class GitIntegrationPanel(EditorPanel):
         self._render_git_ui(ctx)                  # 已初始化仓库：正常 Git 操作界面
         # ===================================================
 
-    # ------------------------------------------------------------------ #
-    # 未初始化仓库的 UI
-    # ------------------------------------------------------------------ #
-    def _render_no_repo_ui(self, ctx) -> None:
-        ctx.label("Source Control")
-        ctx.begin_group("Repository")
-
-        ctx.label("This project is not a Git repository yet.")
-        ctx.button(
-            "Create Git Repository",
-            lambda: self.init_git_repo(),
-            180.0,
-            30.0,
-        )
-
-        ctx.end_group()
-
-    # ------------------------------------------------------------------ #
-    # 已初始化仓库的 UI（沿用之前的逻辑）
-    # ------------------------------------------------------------------ #
     def _render_git_ui(self, ctx) -> None:
         ctx.label("Source Control")
+        ctx.same_line()
+        ctx.button("⟳##refresh_git", self._manual_refresh, 28.0, 20.0)
+
         ctx.begin_group("Changes")
+        try:
+            self._render_staged_section(ctx)
+            self._render_changes_section(ctx)
 
-        staged    = [f for f, s in self.files_status_list.items() if s == "2"]
-        unstaged  = [f for f, s in self.files_status_list.items() if s == "1"]
-        untracked = [f for f, s in self.files_status_list.items() if s == "0"]
+            # -------- 提交消息 --------
+            ctx.label("Commit message:")
+            self._try_set_next_item_width(ctx, 380.0)
+            self._commit_message = ctx.text_input(
+                label="##commit_msg",
+                value=self._commit_message,      # ← 持久状态，不再用提示字面量
+            )
 
-        if ctx.collapsing_header(f"Staged Changes ({len(staged)})"):
-            if not staged:
-                ctx.label("    (none)")
-            for f in staged:
-                ctx.label(f"    M  {f}")
+            # -------- 提交按钮 --------
+            commit_msg = self._commit_message
+            ctx.button(
+                "Check in staged changes",
+                lambda: self.check_in_staged_changes(commit_msg),
+                380.0,                            # ← 加宽，避免文字被截断
+                30.0,
+            )
+        finally:
+            ctx.end_group()
 
-        if ctx.collapsing_header(f"Changes ({len(unstaged) + len(untracked)})"):
-            if not unstaged and not untracked:
-                ctx.label("    (none)")
-            for f in unstaged:
-                ctx.label(f"    M  {f}")
-            for f in untracked:
-                ctx.label(f"    ?  {f}")
 
-        check_in_msg = ctx.text_input(
-            label="",
-            value="Message(Press button to commit)",
-        )
+    def _try_set_next_item_width(self, ctx, width: float) -> None:
+        """ImGui 的 SetNextItemWidth 若已绑定则使用，否则降级为默认宽度。"""
+        try:
+            ctx.set_next_item_width(width)
+        except (AttributeError, TypeError):
+            pass
 
-        ctx.button(
-            "Check in staged changes",
-            lambda: self.check_in_staged_changes(check_in_msg),
-            100.0,
-            30.0,
-        )
 
-        ctx.end_group()
+    def _render_staged_section(self, ctx) -> None:
+        expanded = ctx.collapsing_header(f"Staged Changes ({len(self.staged_files)})")
+        if not expanded:
+            return
+
+        if not self.staged_files:
+            ctx.label("    (none)")
+            return
+
+        for path, status in sorted(self.staged_files.items()):
+            ctx.label(f"    {status}  {path}")
+            ctx.same_line()
+            ctx.button(
+                f"-##unstage_{path}",
+                lambda p=path: self.unstage_file(p),
+                20.0,
+                18.0,
+            )
+
+
+    def _render_changes_section(self, ctx) -> None:
+        total = len(self.unstaged_files) + len(self.untracked_files)
+        expanded = ctx.collapsing_header(f"Changes ({total})")
+
+        # Stage all 放到 header 下一行，避免 same_line 遮挡点击区域
+        if total > 0:
+            ctx.button(
+                "Stage all##stage_all",
+                self.stage_all,
+                120.0,
+                22.0,
+            )
+
+        if not expanded:
+            return
+
+        if total == 0:
+            ctx.label("    (none)")
+            return
+
+        for path, status in sorted(self.unstaged_files.items()):
+            ctx.label(f"    {status}  {path}")
+            ctx.same_line()
+            ctx.button(
+                f"+##stage_{path}",
+                lambda p=path: self.stage_file(p),
+                20.0,
+                18.0,
+            )
+
+        for path in sorted(self.untracked_files):
+            ctx.label(f"    ?  {path}")
+            ctx.same_line()
+            ctx.button(
+                f"+##stage_{path}",
+                lambda p=path: self.stage_file(p),
+                20.0,
+                18.0,
+            )
 
     # ------------------------------------------------------------------ #
     # Git 可用性检测（与仓库检测分离）
@@ -143,16 +186,24 @@ class GitIntegrationPanel(EditorPanel):
     # 刷新：先检测仓库是否存在，再拉取文件状态
     # ------------------------------------------------------------------ #
     def refresh_git_status(self) -> None:
-        self.files_status_list.clear()
+        """Run `git status --porcelain` and rebuild the three file lists.
 
-        # Step 1: 检测当前目录是否在 Git 工作树中
+        - ``AM path`` 这类文件会**同时**出现在 staged 和 unstaged 两个列表中，
+        与 `git status` / VSCode 的显示一致。
+        """
+        staged:    dict[str, str] = {}
+        unstaged:  dict[str, str] = {}
+        untracked: list[str]      = []
+
         if not self._is_inside_work_tree():
             self.is_repo_initialized = False
+            self.staged_files = {}
+            self.unstaged_files = {}
+            self.untracked_files = []
             return
 
         self.is_repo_initialized = True
 
-        # Step 2: 仅在仓库存在时才执行 git status
         try:
             result = subprocess.run(
                 ["git", "status", "--porcelain"],
@@ -178,13 +229,21 @@ class GitIntegrationPanel(EditorPanel):
                 path = path.split(" -> ", 1)[1]
 
             if index_status == "?" and worktree_status == "?":
-                self.files_status_list[path] = "0"
+                untracked.append(path)
                 continue
 
+            if index_status == "!" and worktree_status == "!":
+                continue
+
+            # 关键：X 和 Y 独立判断，不再互斥
             if index_status not in (" ", "?"):
-                self.files_status_list[path] = "2"
-            elif worktree_status not in (" ", "?"):
-                self.files_status_list[path] = "1"
+                staged[path] = index_status
+            if worktree_status not in (" ", "?"):
+                unstaged[path] = worktree_status
+
+        self.staged_files = staged
+        self.unstaged_files = unstaged
+        self.untracked_files = untracked
 
     def _is_inside_work_tree(self) -> bool:
         """使用 `git rev-parse --is-inside-work-tree` 判断是否在 Git 工作树中。"""
@@ -231,7 +290,8 @@ class GitIntegrationPanel(EditorPanel):
     # 提交（仅在有仓库时可用）
     # ------------------------------------------------------------------ #
     def check_in_staged_changes(self, msg: str) -> None:
-        if not msg or msg == "Message(Press button to commit)":
+        if not msg or not msg.strip():
+            Debug.error("Commit message is empty.")
             return
 
         if not self.is_repo_initialized:
@@ -246,15 +306,100 @@ class GitIntegrationPanel(EditorPanel):
                 cwd=self.repo_path,
                 timeout=10,
             )
-        except FileNotFoundError:
-            Debug.error("Git is not installed.")
-            return
-        except subprocess.TimeoutExpired:
-            Debug.error("`git commit` timed out.")
+        except (FileNotFoundError, subprocess.TimeoutExpired) as exc:
+            Debug.error(f"`git commit` failed: {exc}")
             return
 
         if result.returncode == 0:
-            self.refresh_git_status()
-            self._last_refresh = time.time()
+            self._commit_message = ""       # 成功后清空，符合 VSCode 习惯
+            self._refresh_after_mutation()
         else:
+            # 常见失败：没有 staged changes / user.name 未配置 / 钩子拒绝
             Debug.error(f"`git commit` failed: {result.stderr.strip()}")
+
+    def stage_file(self, path: str) -> None:
+        """暂存单个文件（包括新增、修改、删除）。
+
+        使用 ``--`` 分隔符避免路径被误当作选项；对已删除文件，`git add <path>`
+        同样会记录删除操作（Git 2.x 起）。
+        """
+        if not self.is_repo_initialized:
+            Debug.error("No Git repository. Please create one first.")
+            return
+
+        try:
+            result = subprocess.run(
+                ["git", "add", "--", path],
+                capture_output=True,
+                text=True,
+                cwd=self.repo_path,
+                timeout=10,
+            )
+        except (FileNotFoundError, subprocess.TimeoutExpired) as exc:
+            Debug.error(f"`git add` failed: {exc}")
+            return
+
+        if result.returncode == 0:
+            self._refresh_after_mutation()
+        else:
+            Debug.error(f"`git add {path}` failed: {result.stderr.strip()}")
+
+
+    def stage_all(self) -> None:
+        """暂存所有变更（等价于 `git add -A`，包含修改、新增和删除）。"""
+        if not self.is_repo_initialized:
+            Debug.error("No Git repository. Please create one first.")
+            return
+
+        try:
+            result = subprocess.run(
+                ["git", "add", "-A"],
+                capture_output=True,
+                text=True,
+                cwd=self.repo_path,
+                timeout=10,
+            )
+        except (FileNotFoundError, subprocess.TimeoutExpired) as exc:
+            Debug.error(f"`git add -A` failed: {exc}")
+            return
+
+        if result.returncode == 0:
+            self._refresh_after_mutation()
+        else:
+            Debug.error(f"`git add -A` failed: {result.stderr.strip()}")
+
+
+    def unstage_file(self, path: str) -> None:
+        if not self.is_repo_initialized:
+            return
+
+        # 尝试1: 标准情况 (有 HEAD 时可用)
+        # 使用 `git reset HEAD -- <path>` 是 VS Code 的主要方式
+        result = subprocess.run(
+            ["git", "reset", "HEAD", "--", path],
+            capture_output=True, text=True, cwd=self.repo_path, timeout=10,
+        )
+        if result.returncode == 0:
+            self._refresh_after_mutation()
+            return
+
+        # 尝试2: 无提交历史 (No commits yet) 的回退
+        # 不指定 HEAD，直接清空该路径的暂存条目
+        fallback = subprocess.run(
+            ["git", "reset", "--", path],
+            capture_output=True, text=True, cwd=self.repo_path, timeout=10,
+        )
+        if fallback.returncode == 0:
+            self._refresh_after_mutation()
+        else:
+            Debug.error(f"unstage failed: {fallback.stderr.strip()}")
+
+
+    def _refresh_after_mutation(self) -> None:
+        """任何 stage/unstage/commit 之后调用，立即刷新状态并重置节流计时。"""
+        self.refresh_git_status()
+        self._last_refresh = time.time()
+
+    def _manual_refresh(self) -> None:
+        self.refresh_git_status()
+        self._last_refresh = time.monotonic()
