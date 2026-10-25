@@ -10,6 +10,7 @@
 - Commit workflow with a persistent message buffer, empty-message validation, and immediate status refresh after commit.
 - Manual refresh button to force `git status` without waiting for the throttle interval.
 - Files with dual status (e.g. `AM`) are now shown in both "Staged Changes" and "Changes", matching `git status` behavior.
+### Planned
 - Branch display and switching.
 - File status coloring (Modified / Added / Deleted / Untracked).
 - Discard changes action for unstaged files.
