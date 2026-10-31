@@ -63,6 +63,18 @@ The panel updates the file lists automatically, at most once per second. If you 
 
 **The icons are missing.** The icons are vector artwork that the Editor rasterizes when the panel first opens. If the Editor was started without GPU support, or the textures could not be uploaded, the panel falls back to text-only controls and the status codes still work.
 
+## Licences
+
+The plugin ships its own licence and the notices for the icon artwork with the plugin itself. Open the **License** tab of this plugin to read them.
+
+The panel icons come from Lucide, which is free for commercial use. The editor draws plugin pages as plain text, so the links below are written out in full:
+
+https://github.com/Wokrlie/InxGitIntegration/blob/main/package/plugin_pages/license.md
+
+The plugin's own MIT licence:
+
+https://github.com/Wokrlie/InxGitIntegration/blob/main/LICENSE
+
 ## Upcoming features
 
 Branch display and switching, discard-changes for unstaged files, Push/Pull controls, diff preview, and asynchronous `git status` execution are planned for future versions.

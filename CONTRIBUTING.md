@@ -58,5 +58,5 @@ python package.py build dist/plugin.inxpkg && python package.py verify dist/plug
 
 - Icons come from [Lucide](https://lucide.dev), which is free for commercial use under the ISC License. The geometry lives in `package/editor/wokrlie/git_integration/icons.py`.
 - Icons are embedded in the module rather than shipped as files, so the plugin never depends on where its package is unpacked and the build stays byte-for-byte deterministic.
-- Any new artwork must come from a permissive licence and be recorded in `THIRD_PARTY_NOTICES.md` before it ships.
+- Any new artwork must come from a permissive licence and be recorded in `package/plugin_pages/license.md` before it ships. That page is the plugin's License page in the editor, so the notice travels with every installed copy.
 - The icons are rasterized at runtime through the Engine's LunaSVG backend. ImGui itself cannot draw SVG, so do not expect the vector source to reach the renderer.

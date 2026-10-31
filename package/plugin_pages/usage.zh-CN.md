@@ -68,6 +68,18 @@ git config --global user.email "you@example.com"
 
 **图标没有显示。** 图标是矢量素材，由编辑器在面板首次打开时完成光栅化。如果 Editor 启动时没有 GPU 支持，或者纹理上传失败，面板会退回到纯文字控件，状态码仍然正常工作。
 
+## 许可证
+
+插件自身的许可证和图标素材的第三方声明都随插件一起分发。在本插件的**许可证**标签页里可以读到它们。
+
+面板图标来自 Lucide，可免费用于商业用途。编辑器里的插件页面以纯文本显示，因此下面的链接以完整形式写出：
+
+https://github.com/Wokrlie/InxGitIntegration/blob/main/package/plugin_pages/license.zh-CN.md
+
+插件自身的 MIT 许可证：
+
+https://github.com/Wokrlie/InxGitIntegration/blob/main/LICENSE
+
 ## 后续计划
 
 后续版本将支持分支显示与切换、未暂存文件的丢弃改动、Push / Pull 控制、diff 预览，以及异步执行 `git status`。

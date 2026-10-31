@@ -3,7 +3,8 @@
 The icon geometry comes from Lucide (https://lucide.dev), which is released
 under the ISC License and is free for commercial use. The ISC license asks
 that the copyright notice travels with redistributed copies, so it is
-reproduced in ``THIRD_PARTY_NOTICES.md`` at the repository root.
+reproduced in ``package/plugin_pages/license.md``, which ships inside the
+plugin archive as the plugin's License page.
 
 Every icon is stored as the inner markup of a 24x24 Lucide SVG. They are
 rasterized at runtime through the Engine's LunaSVG backend and uploaded as
