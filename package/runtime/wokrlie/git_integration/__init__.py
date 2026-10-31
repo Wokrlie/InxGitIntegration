@@ -1,5 +1,7 @@
-"""Public runtime surface for the example plugin."""
+"""Runtime surface for the Git Integration plugin.
 
-from .component import Null
+The plugin is editor-only: it ships no gameplay components and no player
+runtime code, so this module intentionally exposes nothing.
+"""
 
-__all__ = ["Null"]
+__all__ = []

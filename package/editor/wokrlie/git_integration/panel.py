@@ -1,15 +1,23 @@
-"""Example panel available only inside the editor."""
+"""Git panel available only inside the editor."""
 
+from __future__ import annotations
+
+import os
+import subprocess
+import time
+
+from infernux import Debug
+from infernux.engine.i18n import t
 from infernux.engine.interaction import PanelInteractionDescriptor
+from infernux.engine.project_context import get_project_root
 from infernux.engine.ui.editor_panel import EditorPanel
 from infernux.engine.ui.panel_registry import editor_panel
-from infernux import Debug
-import subprocess, time, os
+
 
 @editor_panel(
-    "Git integration",
+    "Git Integration",
     type_id="wokrlie.git_integration",
-    title_key="wokrlie.git_panel",
+    title_key="wokrlie.git_integration.panel_title",
     menu_path="Extensions/Git Integration",
     menu_path_keys=(
         "menu.extensions",
@@ -17,23 +25,26 @@ import subprocess, time, os
     ),
     interaction=PanelInteractionDescriptor(),
 )
-
-
 class GitIntegrationPanel(EditorPanel):
+    """Source control panel backed by the ``git`` command line."""
+
     def __init__(self) -> None:
         super().__init__("Git Integration", "wokrlie.git_integration.panel")
 
         self.have_git: bool = False
         self.is_repo_initialized: bool = False
-        self.files_status_list: dict[str, str] = {}
+
+        # ``staged_files``/``unstaged_files`` map a path to its porcelain status
+        # code. A path may appear in both when it has staged *and* unstaged
+        # content (for example the ``AM`` state).
+        self.staged_files: dict[str, str] = {}
+        self.unstaged_files: dict[str, str] = {}
+        self.untracked_files: list[str] = []
 
         self._commit_message: str = ""
         self._last_refresh: float = 0.0
         self._refresh_interval: float = 1.0
         self._git_checked: bool = False
-
-        # 项目根目录，优先从引擎获取，否则回退到当前工作目录
-        self.repo_path: str = os.getcwd()
 
     # ------------------------------------------------------------------ #
     # 生命周期（保持惰性初始化，避免 on_enable 崩溃）
@@ -42,6 +53,19 @@ class GitIntegrationPanel(EditorPanel):
         self._git_checked = False
         self.have_git = False
         self.is_repo_initialized = False
+        self.staged_files = {}
+        self.unstaged_files = {}
+        self.untracked_files = []
+
+    @property
+    def repo_path(self) -> str:
+        """The folder the panel operates on.
+
+        Prefers the project root the Editor currently has open and falls back
+        to the process working directory when no project is loaded. Resolved on
+        every read so switching projects does not leave a stale path behind.
+        """
+        return get_project_root() or os.getcwd()
 
     def on_render_content(self, ctx) -> None:
         if not self._git_checked:
@@ -49,7 +73,7 @@ class GitIntegrationPanel(EditorPanel):
             self._git_checked = True
 
         if not self.have_git:
-            ctx.label("Git is not usable in current environment.")
+            ctx.label(t("wokrlie.git_integration.git_unavailable"))
             return
 
         # 节流刷新仓库状态
@@ -58,16 +82,27 @@ class GitIntegrationPanel(EditorPanel):
             self.refresh_git_status()
             self._last_refresh = now
 
-        # ==================== 分支渲染 ====================
         if not self.is_repo_initialized:
             self._render_no_repo_ui(ctx)          # 未初始化仓库：只显示创建按钮
             return
 
         self._render_git_ui(ctx)                  # 已初始化仓库：正常 Git 操作界面
-        # ===================================================
+
+    def _render_no_repo_ui(self, ctx) -> None:
+        """Render the view shown when the folder is not a Git repository yet."""
+        ctx.label(t("wokrlie.git_integration.not_a_repository"))
+        ctx.button(
+            f"{t('wokrlie.git_integration.create_repository')}##create_repository",
+            self.init_git_repo,
+            240.0,
+            28.0,
+        )
+        ctx.label(
+            f"{t('wokrlie.git_integration.repository_folder')}: {self.repo_path}"
+        )
 
     def _render_git_ui(self, ctx) -> None:
-        ctx.label("Source Control")
+        ctx.label(t("wokrlie.git_integration.source_control"))
         ctx.same_line()
         ctx.button("⟳##refresh_git", self._manual_refresh, 28.0, 20.0)
 
@@ -77,8 +112,8 @@ class GitIntegrationPanel(EditorPanel):
             self._render_changes_section(ctx)
 
             # -------- 提交消息 --------
-            ctx.label("Commit message:")
-            self._try_set_next_item_width(ctx, 380.0)
+            ctx.label(t("wokrlie.git_integration.commit_message"))
+            ctx.set_next_item_width(380.0)
             self._commit_message = ctx.text_input(
                 label="##commit_msg",
                 value=self._commit_message,      # ← 持久状态，不再用提示字面量
@@ -87,7 +122,7 @@ class GitIntegrationPanel(EditorPanel):
             # -------- 提交按钮 --------
             commit_msg = self._commit_message
             ctx.button(
-                "Check in staged changes",
+                t("wokrlie.git_integration.commit"),
                 lambda: self.check_in_staged_changes(commit_msg),
                 380.0,                            # ← 加宽，避免文字被截断
                 30.0,
@@ -95,22 +130,16 @@ class GitIntegrationPanel(EditorPanel):
         finally:
             ctx.end_group()
 
-
-    def _try_set_next_item_width(self, ctx, width: float) -> None:
-        """ImGui 的 SetNextItemWidth 若已绑定则使用，否则降级为默认宽度。"""
-        try:
-            ctx.set_next_item_width(width)
-        except (AttributeError, TypeError):
-            pass
-
-
     def _render_staged_section(self, ctx) -> None:
-        expanded = ctx.collapsing_header(f"Staged Changes ({len(self.staged_files)})")
+        expanded = ctx.collapsing_header(
+            f"{t('wokrlie.git_integration.staged_changes')} "
+            f"({len(self.staged_files)})###staged_changes"
+        )
         if not expanded:
             return
 
         if not self.staged_files:
-            ctx.label("    (none)")
+            ctx.label(f"    {t('wokrlie.git_integration.none')}")
             return
 
         for path, status in sorted(self.staged_files.items()):
@@ -123,15 +152,16 @@ class GitIntegrationPanel(EditorPanel):
                 18.0,
             )
 
-
     def _render_changes_section(self, ctx) -> None:
         total = len(self.unstaged_files) + len(self.untracked_files)
-        expanded = ctx.collapsing_header(f"Changes ({total})")
+        expanded = ctx.collapsing_header(
+            f"{t('wokrlie.git_integration.changes')} ({total})###changes"
+        )
 
         # Stage all 放到 header 下一行，避免 same_line 遮挡点击区域
         if total > 0:
             ctx.button(
-                "Stage all##stage_all",
+                f"{t('wokrlie.git_integration.stage_all')}##stage_all",
                 self.stage_all,
                 120.0,
                 22.0,
@@ -141,7 +171,7 @@ class GitIntegrationPanel(EditorPanel):
             return
 
         if total == 0:
-            ctx.label("    (none)")
+            ctx.label(f"    {t('wokrlie.git_integration.none')}")
             return
 
         for path, status in sorted(self.unstaged_files.items()):
@@ -264,12 +294,17 @@ class GitIntegrationPanel(EditorPanel):
     # ------------------------------------------------------------------ #
     def init_git_repo(self) -> None:
         """在当前项目目录初始化一个新的 Git 仓库。"""
+        folder = self.repo_path
+        if not os.path.isdir(folder):
+            Debug.error(f"Cannot initialise a repository in a missing folder: {folder}")
+            return
+
         try:
             result = subprocess.run(
                 ["git", "init"],
                 capture_output=True,
                 text=True,
-                cwd=self.repo_path,
+                cwd=folder,
                 timeout=10,
             )
         except FileNotFoundError:
@@ -344,7 +379,6 @@ class GitIntegrationPanel(EditorPanel):
         else:
             Debug.error(f"`git add {path}` failed: {result.stderr.strip()}")
 
-
     def stage_all(self) -> None:
         """暂存所有变更（等价于 `git add -A`，包含修改、新增和删除）。"""
         if not self.is_repo_initialized:
@@ -367,7 +401,6 @@ class GitIntegrationPanel(EditorPanel):
             self._refresh_after_mutation()
         else:
             Debug.error(f"`git add -A` failed: {result.stderr.strip()}")
-
 
     def unstage_file(self, path: str) -> None:
         if not self.is_repo_initialized:
@@ -394,7 +427,9 @@ class GitIntegrationPanel(EditorPanel):
         else:
             Debug.error(f"unstage failed: {fallback.stderr.strip()}")
 
-
+    # ------------------------------------------------------------------ #
+    # 刷新辅助
+    # ------------------------------------------------------------------ #
     def _refresh_after_mutation(self) -> None:
         """任何 stage/unstage/commit 之后调用，立即刷新状态并重置节流计时。"""
         self.refresh_git_status()
@@ -402,4 +437,4 @@ class GitIntegrationPanel(EditorPanel):
 
     def _manual_refresh(self) -> None:
         self.refresh_git_status()
-        self._last_refresh = time.monotonic()
+        self._last_refresh = time.time()

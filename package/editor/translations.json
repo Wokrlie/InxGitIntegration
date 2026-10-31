@@ -3,11 +3,33 @@
   "locales": {
     "en": {
       "wokrlie.git_integration.menu_root": "Git Integration",
-      "wokrlie.git_integration.panel_title": "Git Integration"
+      "wokrlie.git_integration.panel_title": "Git Integration",
+      "wokrlie.git_integration.source_control": "Source Control",
+      "wokrlie.git_integration.staged_changes": "Staged Changes",
+      "wokrlie.git_integration.changes": "Changes",
+      "wokrlie.git_integration.stage_all": "Stage all",
+      "wokrlie.git_integration.none": "(none)",
+      "wokrlie.git_integration.commit_message": "Commit message:",
+      "wokrlie.git_integration.commit": "Commit",
+      "wokrlie.git_integration.create_repository": "Create Git Repository",
+      "wokrlie.git_integration.not_a_repository": "This folder is not a Git repository yet.",
+      "wokrlie.git_integration.repository_folder": "Repository folder",
+      "wokrlie.git_integration.git_unavailable": "Git is not usable in the current environment."
     },
     "zh": {
-      "wokrlie.git_integration.menu_root": "Git集成",
-      "wokrlie.git_integration.panel_title": "Git集成"
+      "wokrlie.git_integration.menu_root": "Git 集成",
+      "wokrlie.git_integration.panel_title": "Git 集成",
+      "wokrlie.git_integration.source_control": "源代码管理",
+      "wokrlie.git_integration.staged_changes": "已暂存的更改",
+      "wokrlie.git_integration.changes": "更改",
+      "wokrlie.git_integration.stage_all": "暂存全部",
+      "wokrlie.git_integration.none": "（无）",
+      "wokrlie.git_integration.commit_message": "提交信息：",
+      "wokrlie.git_integration.commit": "提交",
+      "wokrlie.git_integration.create_repository": "创建 Git 仓库",
+      "wokrlie.git_integration.not_a_repository": "当前文件夹还不是 Git 仓库。",
+      "wokrlie.git_integration.repository_folder": "仓库目录",
+      "wokrlie.git_integration.git_unavailable": "当前环境无法使用 Git。"
     }
   }
 }
