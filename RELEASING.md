@@ -10,7 +10,7 @@ Releases are produced by GitHub Actions. No artifact is uploaded by hand.
 | Engine compatibility | `package/inx_package.json` → `engine` |
 | Release notes | `CHANGELOG.md` and `CHANGELOG.zh-CN.md` |
 
-The release tag must match the manifest version exactly — `v0.1.3` for version `0.1.3`. `package.py release-manifest` fails on any mismatch, so a mistyped tag stops the release instead of publishing a mislabelled archive.
+The release tag must match the manifest version exactly — `v0.1.4` for version `0.1.4`. `package.py release-manifest` fails on any mismatch, so a mistyped tag stops the release instead of publishing a mislabelled archive.
 
 ## Procedure
 
@@ -19,8 +19,8 @@ The release tag must match the manifest version exactly — `v0.1.3` for version
 3. Tag the merge commit and push the tag:
 
    ```bash
-   git tag v0.1.3
-   git push origin v0.1.3
+   git tag v0.1.4
+   git push origin v0.1.4
    ```
 
 4. The `release` job runs on the tag. It builds the archive, verifies it, checks that two independent builds are byte-identical, generates `infernux-plugin-release.json`, and publishes both files as GitHub Release assets.
@@ -44,7 +44,7 @@ Because of this, a fix for a published version needs a **new** version number. N
 python package.py build dist/wokrlie.git_integration.inxpkg
 python package.py verify dist/wokrlie.git_integration.inxpkg
 python package.py release-manifest dist/wokrlie.git_integration.inxpkg \
-    --tag v0.1.3 --output dist/infernux-plugin-release.json
+    --tag v0.1.4 --output dist/infernux-plugin-release.json
 ```
 
 The build is deterministic: running it twice over the same source must produce byte-identical archives, which is what CI asserts before it publishes anything.
