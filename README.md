@@ -15,6 +15,7 @@ A source control panel for the [Infernux Engine](https://github.com/ChenlizheMe/
 - Commit flow with a persistent message buffer and empty-message validation.
 - Automatic refresh of the file lists, plus a manual refresh button.
 - Files with a dual status (for example `AM`) appear in both lists, matching `git status`.
+- Vector icons for the stage, unstage, stage-all, and refresh controls, plus a status icon and a coloured status code on every file row.
 - Localized panel UI in English and Simplified Chinese.
 
 ## Requirements
@@ -84,6 +85,7 @@ The Editor-only code lives in `package/editor/`, and the runtime surface in `pac
 | [ROADMAP.md](ROADMAP.md) | Planned features |
 | [CONTRIBUTING.md](CONTRIBUTING.md) | Contribution and commit conventions |
 | [RELEASING.md](RELEASING.md) | Release procedure |
+| [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) | Licences of the bundled icon artwork |
 
 ## License
 

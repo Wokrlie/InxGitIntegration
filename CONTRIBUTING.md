@@ -53,3 +53,10 @@ python package.py build dist/plugin.inxpkg && python package.py verify dist/plug
 - Every `git` call must pass `cwd=` explicitly so the panel always operates on the folder open in the Editor.
 - Use `subprocess.run` with a timeout. The render thread must never block indefinitely.
 - Panel state that survives a render lives on the instance; it is never stored in a module-level global.
+
+## Icons and artwork
+
+- Icons come from [Lucide](https://lucide.dev), which is free for commercial use under the ISC License. The geometry lives in `package/editor/wokrlie/git_integration/icons.py`.
+- Icons are embedded in the module rather than shipped as files, so the plugin never depends on where its package is unpacked and the build stays byte-for-byte deterministic.
+- Any new artwork must come from a permissive licence and be recorded in `THIRD_PARTY_NOTICES.md` before it ships.
+- The icons are rasterized at runtime through the Engine's LunaSVG backend. ImGui itself cannot draw SVG, so do not expect the vector source to reach the renderer.

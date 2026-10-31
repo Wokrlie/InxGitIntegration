@@ -5,7 +5,6 @@ Planned work for the Git Integration plugin. Delivered changes are recorded in [
 ## Next
 
 - **Branch display and switching** — show the current branch, and let the user switch or create branches from the panel.
-- **File status coloring** — distinguish Modified / Added / Deleted / Untracked entries in both file lists.
 - **Discard changes** — revert the unstaged modifications of a single file.
 - **Push / Pull controls** — fetch, pull, and push without leaving the Editor.
 - **Diff preview** — show the content diff of a tracked file.

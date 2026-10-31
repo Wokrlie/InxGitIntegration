@@ -2,6 +2,20 @@
 
 All notable changes to the Git Integration plugin are documented in this file. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## 0.1.5
+
+### Added
+
+- Vector icons across the panel. The stage, unstage, stage-all, and refresh controls are now Lucide icons instead of the `+`, `-`, and `⟳` characters, and every file row leads with an icon for its kind of change.
+- Coloured file status. The Git status code of each file is now drawn in the colour of that change — added is green, modified is yellow, deleted is red, untracked is cyan, renamed is blue, and a conflict is orange.
+- Tooltips on the icon controls and on the status code, naming the action and the kind of change.
+- `THIRD_PARTY_NOTICES.md` records the licence of the icon artwork.
+
+### Changed
+
+- The icon artwork is embedded in the plugin and rasterized at runtime through the Engine's LunaSVG backend. The package stays a single deterministic archive, and one vector asset can be drawn in any colour.
+- The status code keeps its Git spelling, so a dual state such as `AM` stays readable next to its icon.
+
 ## 0.1.4
 
 ### Fixed
