@@ -10,7 +10,7 @@ class GitIntegrationEditorPreload(InxPreload):
         # Imports performed here are attributed to this lifecycle transaction.
         # The Editor removes contributed panels, commands, and shortcuts before
         # reloading this file, disabling the plugin, or closing the project.
-        import_module("wokrlie.git_integration.panel")
+        import_module(".panel", package=__package__)
 
     def unload(self) -> None:
         pass

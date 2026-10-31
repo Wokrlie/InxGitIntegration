@@ -2,7 +2,7 @@
   "$schema": "infernux.inxpackage.source",
   "reference": "wokrlie/git_integration",
   "name": "Git Integration",
-  "version": "0.1.1",
+  "version": "0.1.3",
   "engine": ">=0.4.1,<0.5",
   "intro": "A simple git integration for infernux engine"
 }
