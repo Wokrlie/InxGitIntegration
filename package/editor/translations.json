@@ -25,7 +25,24 @@
       "wokrlie.git_integration.status_copied": "Copied",
       "wokrlie.git_integration.status_conflicted": "Conflicted",
       "wokrlie.git_integration.status_untracked": "Untracked",
-      "wokrlie.git_integration.status_ignored": "Ignored"
+      "wokrlie.git_integration.status_ignored": "Ignored",
+      "wokrlie.git_integration.detached_head": "detached HEAD",
+      "wokrlie.git_integration.no_branch": "(no branch)",
+      "wokrlie.git_integration.branch_filter": "Filter branches...",
+      "wokrlie.git_integration.no_branches": "No branch matches the filter.",
+      "wokrlie.git_integration.new_branch_name": "New branch name...",
+      "wokrlie.git_integration.create_branch": "Create",
+      "wokrlie.git_integration.operation_failed": "Operation failed",
+      "wokrlie.git_integration.error_see_console": "The full message was written to the Console.",
+      "wokrlie.git_integration.open_console": "Open Console",
+      "wokrlie.git_integration.copy_details": "Copy details",
+      "wokrlie.git_integration.close": "Close",
+      "wokrlie.git_integration.error_local_changes": "Local changes would be overwritten by the switch. Commit or stash them first.",
+      "wokrlie.git_integration.error_branch_missing": "That branch does not exist any more.",
+      "wokrlie.git_integration.error_invalid_name": "That is not a valid branch name.",
+      "wokrlie.git_integration.error_branch_exists": "A branch with that name already exists.",
+      "wokrlie.git_integration.error_worktree": "That branch is already used by another worktree.",
+      "wokrlie.git_integration.error_generic": "The command failed. The details are in the Console."
     },
     "zh": {
       "wokrlie.git_integration.menu_root": "Git 集成",
@@ -51,7 +68,24 @@
       "wokrlie.git_integration.status_copied": "已复制",
       "wokrlie.git_integration.status_conflicted": "存在冲突",
       "wokrlie.git_integration.status_untracked": "未跟踪",
-      "wokrlie.git_integration.status_ignored": "已忽略"
+      "wokrlie.git_integration.status_ignored": "已忽略",
+      "wokrlie.git_integration.detached_head": "分离 HEAD",
+      "wokrlie.git_integration.no_branch": "（无分支）",
+      "wokrlie.git_integration.branch_filter": "过滤分支…",
+      "wokrlie.git_integration.no_branches": "没有匹配的分支。",
+      "wokrlie.git_integration.new_branch_name": "新分支名…",
+      "wokrlie.git_integration.create_branch": "创建",
+      "wokrlie.git_integration.operation_failed": "操作失败",
+      "wokrlie.git_integration.error_see_console": "完整信息已写入 Console。",
+      "wokrlie.git_integration.open_console": "打开 Console",
+      "wokrlie.git_integration.copy_details": "复制详情",
+      "wokrlie.git_integration.close": "关闭",
+      "wokrlie.git_integration.error_local_changes": "本地有未提交的修改，切换分支会覆盖它们。请先提交或暂存。",
+      "wokrlie.git_integration.error_branch_missing": "该分支已不存在。",
+      "wokrlie.git_integration.error_invalid_name": "这不是合法的分支名。",
+      "wokrlie.git_integration.error_branch_exists": "同名分支已存在。",
+      "wokrlie.git_integration.error_worktree": "该分支已被另一个 worktree 占用。",
+      "wokrlie.git_integration.error_generic": "命令执行失败，详情见 Console。"
     }
   }
 }
