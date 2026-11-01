@@ -21,7 +21,6 @@ from .git import (
     GitRunner,
     StatusSnapshot,
     is_safe_branch_name,
-    list_branches,
     read_repository_state,
     validate_branch_name,
 )
@@ -34,6 +33,9 @@ _MAX_BRANCH_LABEL = 28
 _DIM_COLOR = (0.55, 0.55, 0.58, 1.0)
 #: Colour of the branch name while HEAD is detached.
 _DETACHED_COLOR = (0.95, 0.55, 0.20, 1.0)
+#: ImGui's ``ImGuiCond_FirstUseEver``. A section opens the first time the
+#: user sees it and then keeps whatever state they leave it in.
+_FIRST_USE = 4
 
 
 @editor_panel(
@@ -76,7 +78,6 @@ class GitIntegrationPanel(EditorPanel):
         self._branches: list[BranchInfo] = []
         self._branch_filter: str = ""
         self._new_branch: str = ""
-        self._open_branches: bool = False
 
         self._error: str = ""
         self._error_detail: str = ""
@@ -229,8 +230,6 @@ class GitIntegrationPanel(EditorPanel):
     def _render_git_ui(self, ctx) -> None:
         ctx.label(t("wokrlie.git_integration.source_control"))
         ctx.same_line()
-        self._render_branch_button(ctx)
-        ctx.same_line()
         self._icon_button(
             ctx,
             "##refresh_git",
@@ -238,6 +237,8 @@ class GitIntegrationPanel(EditorPanel):
             t("wokrlie.git_integration.refresh"),
             self._manual_refresh,
         )
+
+        self._render_branches_section(ctx)
 
         ctx.begin_group("Changes")
         try:
@@ -263,14 +264,48 @@ class GitIntegrationPanel(EditorPanel):
         finally:
             ctx.end_group()
 
-        self._render_branch_popup(ctx)
         self._render_error_dialog(ctx)
 
     # ------------------------------------------------------------------ #
     # 分支
     # ------------------------------------------------------------------ #
-    def _render_branch_button(self, ctx) -> None:
-        """Draw the current branch and the control that opens the branch list."""
+    def _render_branches_section(self, ctx) -> None:
+        """The branch section: the current branch, the list, and the new row.
+
+        The branches live in their own section instead of behind a popup:
+        the list is the thing the user works with, and a popup hid it
+        behind one click.
+        """
+        ctx.set_next_item_open(True, _FIRST_USE)
+        if not ctx.collapsing_header(
+            f"{t('wokrlie.git_integration.branches')} ({len(self._branches)})###branches"
+        ):
+            return
+
+        self._render_current_branch(ctx)
+        ctx.separator()
+
+        ctx.set_next_item_width(280.0)
+        self._branch_filter = ctx.input_text_with_hint(
+            "##git_branch_filter",
+            t("wokrlie.git_integration.branch_filter"),
+            self._branch_filter,
+            128,
+        )
+
+        labels, entries = self._visible_branches()
+        if labels:
+            clicked = ctx.selectable_list_clipped(labels)
+            if 0 <= clicked < len(entries):
+                self._switch_to(entries[clicked])
+        else:
+            ctx.label(t("wokrlie.git_integration.no_branches"))
+
+        ctx.separator()
+        self._render_create_branch(ctx)
+
+    def _render_current_branch(self, ctx) -> None:
+        """The branch the project is on, with its upstream and its drift."""
         icon = self._icon("git-branch")
         if icon:
             ctx.image(icon, self._icon_size, self._icon_size)
@@ -280,29 +315,13 @@ class GitIntegrationPanel(EditorPanel):
         detached = self._snapshot.detached
         if detached:
             ctx.push_style_color(ImGuiCol.Text, *_DETACHED_COLOR)
-        ctx.push_id_str("git_branch_button")
-        try:
-            ctx.button(name, self._open_branch_list, 0.0, self._button_size)
-        finally:
-            ctx.pop_id()
+        ctx.label(name)
         if detached:
             ctx.pop_style_color()
         self._tooltip(ctx, self._branch_tooltip())
 
-        chevron = self._icon("chevron-down")
-        if chevron:
-            # The arrow marks the branch name as a control that opens a list.
-            if ctx.image_button(
-                "##git_branch_chevron",
-                chevron,
-                self._button_size,
-                self._button_size,
-            ):
-                self._open_branch_list()
-
-        if chevron or self._snapshot.upstream:
-            ctx.same_line()
         if self._snapshot.upstream:
+            ctx.same_line()
             ctx.push_style_color(ImGuiCol.Text, *_DIM_COLOR)
             ctx.label(self._upstream_label())
             ctx.pop_style_color()
@@ -332,51 +351,6 @@ class GitIntegrationPanel(EditorPanel):
         if self._snapshot.ahead or self._snapshot.behind:
             text = f"{text}  ↑{self._snapshot.ahead} ↓{self._snapshot.behind}"
         return text
-
-    def _open_branch_list(self) -> None:
-        """Load the branches and ask for the picker to open.
-
-        ``for-each-ref`` only reads the refs, so it is quick enough to run
-        on the click that opens the picker.
-        """
-        self._branches = list_branches(self._runner())
-        self._branch_filter = ""
-        self._open_branches = True
-
-    def _render_branch_popup(self, ctx) -> None:
-        """The picker that lists the branches and creates new ones."""
-        if self._open_branches:
-            # Keep asking until ImGui accepts the request: a one frame
-            # request can be lost during focus arbitration.
-            ctx.open_popup("##git_branch_popup")
-
-        if not ctx.begin_popup("##git_branch_popup"):
-            return
-
-        self._open_branches = False
-        try:
-            ctx.set_next_item_width(280.0)
-            self._branch_filter = ctx.input_text_with_hint(
-                "##git_branch_filter",
-                t("wokrlie.git_integration.branch_filter"),
-                self._branch_filter,
-                128,
-            )
-            ctx.separator()
-
-            labels, entries = self._visible_branches()
-            if labels:
-                selected = ctx.selectable_list_clipped(labels)
-                if 0 <= selected < len(entries):
-                    self._switch_to(entries[selected])
-                    ctx.close_current_popup()
-            else:
-                ctx.label(t("wokrlie.git_integration.no_branches"))
-
-            ctx.separator()
-            self._render_create_branch(ctx)
-        finally:
-            ctx.end_popup()
 
     def _visible_branches(self) -> tuple[list[str], list[BranchInfo]]:
         """The branch rows that pass the filter, with the branch behind each."""
@@ -617,13 +591,14 @@ class GitIntegrationPanel(EditorPanel):
 
     def _apply_state(self, state) -> None:
         """Store the repository state the worker thread reported."""
-        inside, snapshot, result = state
         self._state_known = True
-        self.is_repo_initialized = inside
-        if snapshot is not None:
-            self._snapshot = snapshot
-        elif inside:
-            self._log_error(f"`git status` failed: {result.summary}")
+        self.is_repo_initialized = state.inside
+        if state.snapshot is not None:
+            self._snapshot = state.snapshot
+        if state.inside:
+            self._branches = state.branches
+        elif state.error is not None:
+            self._log_error(f"`git status` failed: {state.error.summary}")
 
     def _finish_action(self, result: CommandResult) -> None:
         """Apply the outcome of a mutating command."""
@@ -654,7 +629,6 @@ class GitIntegrationPanel(EditorPanel):
     def _after_mutation(self) -> None:
         """Ask for a fresh state after a mutating command finished."""
         self._last_refresh = 0.0
-        self._branches = []
 
     def _describe_failure(self, result: CommandResult) -> str:
         """Turn a git failure into a message the user can act on."""
@@ -812,4 +786,3 @@ class GitIntegrationPanel(EditorPanel):
     # ------------------------------------------------------------------ #
     def _manual_refresh(self) -> None:
         self._last_refresh = 0.0
-        self._branches = []

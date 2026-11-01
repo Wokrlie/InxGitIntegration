@@ -18,7 +18,7 @@ A source control panel for the [Infernux Engine](https://github.com/ChenlizheMe/
 - Vector icons for the stage, unstage, stage-all, and refresh controls, plus a status icon and a coloured status code on every file row.
 - Localized panel UI in English and Simplified Chinese.
 - The plugin's own licence and the notices for the bundled icon artwork ship with the plugin and are shown on the **License** page of the plugin information.
-- Branch switching from the panel: the header shows the current branch, and the picker lists the local and remote branches, creates new ones, and reports failures in the Console.
+- Branch switching from the panel: a **Branches** section shows the current branch with its upstream, lists the local and remote branches, creates new ones, and reports failures in the Console.
 
 ## Requirements
 

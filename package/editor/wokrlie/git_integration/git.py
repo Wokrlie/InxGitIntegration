@@ -88,6 +88,20 @@ class BranchInfo:
     upstream: str = ""
 
 
+@dataclass
+class RepositoryState:
+    """What one background pass found out about the repository."""
+
+    #: Whether the folder is inside a work tree.
+    inside: bool
+    #: The file lists and the branch state, when they could be read.
+    snapshot: StatusSnapshot | None = None
+    #: The local and remote branches.
+    branches: list[BranchInfo] = field(default_factory=list)
+    #: The failure that stopped the pass, when there was one.
+    error: CommandResult | None = None
+
+
 class GitRunner:
     """Runs git commands against one repository."""
 
@@ -272,22 +286,24 @@ def read_status(runner: GitRunner) -> CommandResult:
     )
 
 
-def read_repository_state(
-    runner: GitRunner,
-) -> tuple[bool, StatusSnapshot | None, CommandResult]:
+def read_repository_state(runner: GitRunner) -> RepositoryState:
     """Check whether the folder is a repository and read its state.
 
-    The two commands run back to back so the whole check costs one worker
-    thread instead of two. The snapshot is ``None`` when the state could
-    not be read; the result then carries the reason.
+    The commands run back to back so the whole check costs one worker
+    thread instead of two. The branch list belongs to the same pass: it
+    comes from the refs, so it is cheap next to the status.
     """
     inside = runner.run("rev-parse", "--is-inside-work-tree")
     if not inside.ok or inside.stdout.strip() != "true":
-        return False, None, inside
+        return RepositoryState(inside=False, error=inside)
     result = read_status(runner)
     if not result.ok:
-        return True, None, result
-    return True, parse_status(result.stdout), result
+        return RepositoryState(inside=True, error=result)
+    return RepositoryState(
+        inside=True,
+        snapshot=parse_status(result.stdout),
+        branches=list_branches(runner),
+    )
 
 
 def is_safe_branch_name(name: str) -> bool:

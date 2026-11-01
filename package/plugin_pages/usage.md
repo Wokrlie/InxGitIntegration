@@ -14,9 +14,10 @@ Git must be installed and reachable on your `PATH`. When it is not, the panel sh
 
 ## The panel layout
 
-The normal view has four parts, from top to bottom:
+The normal view has five parts, from top to bottom:
 
-- **Source Control** — the header. It shows the branch the project is currently on, and clicking it opens the branch list. The refresh icon on the right forces an immediate `git status`, skipping the refresh interval.
+- **Source Control** — the header. The refresh icon on the right forces an immediate `git status`, skipping the refresh interval.
+- **Branches** — the branch the project is on, the list of branches, and the row that creates a new one.
 - **Staged Changes** — files that will be included in the next commit.
 - **Changes** — files that have been modified or deleted but are not staged yet, plus untracked files.
 - **Commit area** — a message box and a **Commit** button.
@@ -53,9 +54,10 @@ The panel updates the file lists automatically, at most once per second. If you 
 
 ## Switching branches
 
-The header shows the branch the project is currently on, together with its upstream and how far it has drifted from it (`↑2 ↓1`). Click the branch to open the branch list.
+The **Branches** section of the panel holds everything about branches. It opens the first time you open the panel, and you can fold it away like the file lists.
 
-- The list shows the local branches first and the remote ones after them. The current branch is marked with a dot, and a branch that tracks another one shows its upstream on the right.
+- The first line is the branch the project is currently on, together with its upstream and how far it has drifted from it (`↑2 ↓1`).
+- The list below shows the local branches first and the remote ones after them. The current branch is marked with a dot, and a branch that tracks another one shows its upstream on the right.
 - Type in the filter box to narrow the list down. The filter only changes what is shown; it runs no command.
 - Click a branch to switch to it. The switch runs in the background, so the panel stays responsive even in a large repository.
 - Type a name in the field at the bottom and click **Create** to make a branch from the current commit and switch to it. A branch name may contain `/`, for example `feature/new-panel`.

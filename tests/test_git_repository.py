@@ -24,6 +24,7 @@ from git_integration.git import (  # noqa: E402
     create_branch,
     list_branches,
     parse_status,
+    read_repository_state,
     read_status,
     validate_branch_name,
 )
@@ -73,6 +74,26 @@ class GitRepositoryTests(unittest.TestCase):
         self.assertEqual(snapshot.branch, "main")
         self.assertFalse(snapshot.detached)
         self.assertEqual(snapshot.unstaged, {})
+
+    def test_the_state_pass_carries_the_branch_list(self):
+        """The branch section draws from the same background pass."""
+        self.commit()
+        self.git("branch", "feature/nested")
+        state = read_repository_state(self.runner)
+        self.assertTrue(state.inside)
+        self.assertIsNotNone(state.snapshot)
+        names = [branch.name for branch in state.branches]
+        self.assertIn("main", names)
+        self.assertIn("feature/nested", names)
+
+    def test_a_folder_outside_a_repository_is_reported(self):
+        outside = self.root / "not-a-repo"
+        outside.mkdir()
+        state = read_repository_state(GitRunner(str(outside)))
+        self.assertFalse(state.inside)
+        self.assertIsNone(state.snapshot)
+        self.assertEqual(state.branches, [])
+        self.assertIsNotNone(state.error)
 
     def test_modified_untracked_and_staged_files(self):
         self.commit()

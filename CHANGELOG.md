@@ -2,6 +2,13 @@
 
 All notable changes to the Git Integration plugin are documented in this file. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## 0.2.0.1
+
+### Changed
+
+- **The branches moved into their own section.** The branch list used to live behind a popup that the branch name in the header opened. It is now a **Branches** section in the panel, above the file lists: the branch the project is on, the list of local and remote branches with a filter, and the row that creates a new one. The section opens the first time the panel is shown and can be folded away like the file lists.
+- The branch list no longer needs a process of its own. The background status pass collects the branches together with the file lists now, so the list is always the one the repository actually has.
+
 ## 0.2.0
 
 ### Added
