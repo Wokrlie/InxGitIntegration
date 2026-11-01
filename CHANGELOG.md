@@ -17,6 +17,10 @@ All notable changes to the Git Integration plugin are documented in this file. T
 - The icon artwork is embedded in the plugin and rasterized at runtime through the Engine's LunaSVG backend. The package stays a single deterministic archive, and one vector asset can be drawn in any colour.
 - The status code keeps its Git spelling, so a dual state such as `AM` stays readable next to its icon.
 
+### Fixed
+
+- **The panel reported Git failures as Python tracebacks instead of the real error.** Every failure path called `Debug.error(...)`, which is not an Engine API — the Engine provides `Debug.log_error`. The call raised `AttributeError` before the Git message could be logged, so the reason a commit, a stage, or `git init` failed never reached the Console. The errors are now written with `Debug.log_error(...)` and tagged with the plugin's source, so the Console can group and clear them.
+
 ### Dependencies
 
 - **The panel now depends on an undocumented Engine capability.** The icons are rasterized at runtime through the Engine's LunaSVG-backed texture loader, which is not part of the documented plugin API. Vector artwork could not previously be shipped inside a plugin at all, because ImGui only draws raster textures.

@@ -31,6 +31,24 @@ from .icons import IconCache, NEUTRAL_COLOR, STATUS_COLORS, STATUS_LABELS
 class GitIntegrationPanel(EditorPanel):
     """Source control panel backed by the ``git`` command line."""
 
+    #: Tag for the Console entries this plugin writes. The Engine groups and
+    #: clears entries by source, so the plugin's diagnostics stay separable
+    #: from everyone else's.
+    SOURCE_FILE = "wokrlie/git_integration/panel.py"
+
+    # ------------------------------------------------------------------ #
+    # 日志（写入引擎 Console）
+    # ------------------------------------------------------------------ #
+    def _log_error(self, message: str) -> None:
+        """Write one error to the Editor Console.
+
+        The Console keeps the entry after the panel closes, so a long Git
+        message stays readable and can be copied from there. A panel popup
+        only points the user here; it is not the place where the error
+        survives.
+        """
+        Debug.log_error(message, source_file=self.SOURCE_FILE)
+
     def __init__(self) -> None:
         super().__init__("Git Integration", "wokrlie.git_integration.panel")
 
@@ -298,7 +316,7 @@ class GitIntegrationPanel(EditorPanel):
             self.have_git = False
 
         if not self.have_git:
-            Debug.error("Git is not usable in current environment.")
+            self._log_error("Git is not usable in current environment.")
 
     # ------------------------------------------------------------------ #
     # 刷新：先检测仓库是否存在，再拉取文件状态
@@ -332,7 +350,7 @@ class GitIntegrationPanel(EditorPanel):
                 timeout=5,
             )
         except (FileNotFoundError, subprocess.CalledProcessError, subprocess.TimeoutExpired) as exc:
-            Debug.error(f"`git status` failed: {exc}")
+            self._log_error(f"`git status` failed: {exc}")
             return
 
         for raw in result.stdout.splitlines():
@@ -384,7 +402,7 @@ class GitIntegrationPanel(EditorPanel):
         """在当前项目目录初始化一个新的 Git 仓库。"""
         folder = self.repo_path
         if not os.path.isdir(folder):
-            Debug.error(f"Cannot initialise a repository in a missing folder: {folder}")
+            self._log_error(f"Cannot initialise a repository in a missing folder: {folder}")
             return
 
         try:
@@ -396,10 +414,10 @@ class GitIntegrationPanel(EditorPanel):
                 timeout=10,
             )
         except FileNotFoundError:
-            Debug.error("Git is not installed.")
+            self._log_error("Git is not installed.")
             return
         except subprocess.TimeoutExpired:
-            Debug.error("`git init` timed out.")
+            self._log_error("`git init` timed out.")
             return
 
         if result.returncode == 0:
@@ -407,18 +425,18 @@ class GitIntegrationPanel(EditorPanel):
             self.refresh_git_status()
             self._last_refresh = time.time()
         else:
-            Debug.error(f"`git init` failed: {result.stderr.strip()}")
+            self._log_error(f"`git init` failed: {result.stderr.strip()}")
 
     # ------------------------------------------------------------------ #
     # 提交（仅在有仓库时可用）
     # ------------------------------------------------------------------ #
     def check_in_staged_changes(self, msg: str) -> None:
         if not msg or not msg.strip():
-            Debug.error("Commit message is empty.")
+            self._log_error("Commit message is empty.")
             return
 
         if not self.is_repo_initialized:
-            Debug.error("No Git repository. Please create one first.")
+            self._log_error("No Git repository. Please create one first.")
             return
 
         try:
@@ -430,7 +448,7 @@ class GitIntegrationPanel(EditorPanel):
                 timeout=10,
             )
         except (FileNotFoundError, subprocess.TimeoutExpired) as exc:
-            Debug.error(f"`git commit` failed: {exc}")
+            self._log_error(f"`git commit` failed: {exc}")
             return
 
         if result.returncode == 0:
@@ -438,7 +456,7 @@ class GitIntegrationPanel(EditorPanel):
             self._refresh_after_mutation()
         else:
             # 常见失败：没有 staged changes / user.name 未配置 / 钩子拒绝
-            Debug.error(f"`git commit` failed: {result.stderr.strip()}")
+            self._log_error(f"`git commit` failed: {result.stderr.strip()}")
 
     def stage_file(self, path: str) -> None:
         """暂存单个文件（包括新增、修改、删除）。
@@ -447,7 +465,7 @@ class GitIntegrationPanel(EditorPanel):
         同样会记录删除操作（Git 2.x 起）。
         """
         if not self.is_repo_initialized:
-            Debug.error("No Git repository. Please create one first.")
+            self._log_error("No Git repository. Please create one first.")
             return
 
         try:
@@ -459,18 +477,18 @@ class GitIntegrationPanel(EditorPanel):
                 timeout=10,
             )
         except (FileNotFoundError, subprocess.TimeoutExpired) as exc:
-            Debug.error(f"`git add` failed: {exc}")
+            self._log_error(f"`git add` failed: {exc}")
             return
 
         if result.returncode == 0:
             self._refresh_after_mutation()
         else:
-            Debug.error(f"`git add {path}` failed: {result.stderr.strip()}")
+            self._log_error(f"`git add {path}` failed: {result.stderr.strip()}")
 
     def stage_all(self) -> None:
         """暂存所有变更（等价于 `git add -A`，包含修改、新增和删除）。"""
         if not self.is_repo_initialized:
-            Debug.error("No Git repository. Please create one first.")
+            self._log_error("No Git repository. Please create one first.")
             return
 
         try:
@@ -482,13 +500,13 @@ class GitIntegrationPanel(EditorPanel):
                 timeout=10,
             )
         except (FileNotFoundError, subprocess.TimeoutExpired) as exc:
-            Debug.error(f"`git add -A` failed: {exc}")
+            self._log_error(f"`git add -A` failed: {exc}")
             return
 
         if result.returncode == 0:
             self._refresh_after_mutation()
         else:
-            Debug.error(f"`git add -A` failed: {result.stderr.strip()}")
+            self._log_error(f"`git add -A` failed: {result.stderr.strip()}")
 
     def unstage_file(self, path: str) -> None:
         if not self.is_repo_initialized:
@@ -513,7 +531,7 @@ class GitIntegrationPanel(EditorPanel):
         if fallback.returncode == 0:
             self._refresh_after_mutation()
         else:
-            Debug.error(f"unstage failed: {fallback.stderr.strip()}")
+            self._log_error(f"unstage failed: {fallback.stderr.strip()}")
 
     # ------------------------------------------------------------------ #
     # 刷新辅助

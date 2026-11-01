@@ -63,6 +63,8 @@ The panel updates the file lists automatically, at most once per second. If you 
 
 **The icons are missing.** The icons are vector artwork that the Editor rasterizes when the panel first opens. If the Editor was started without GPU support, or the textures could not be uploaded, the panel falls back to text-only controls and the status codes still work.
 
+**An operation fails and the panel looks unchanged.** The panel writes the reason to the Editor Console. Open the Console window to read it — the full Git output is kept there, so it stays available after the message box closes.
+
 ## Licences
 
 The plugin ships its own licence and the notices for the icon artwork with the plugin itself. Open the **License** tab of this plugin to read them.
