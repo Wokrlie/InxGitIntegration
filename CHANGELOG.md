@@ -2,6 +2,31 @@
 
 All notable changes to the Git Integration plugin are documented in this file. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## 0.2.0
+
+### Added
+
+- **Branch switching from the panel.** The panel header shows the current branch next to a branch icon, and clicking it opens a picker that lists the local branches together with the remote branches Git already knows about. Typing filters the list, and picking a branch switches to it with `git checkout`.
+- **Creating a branch from the panel.** The picker ends with a row that takes a new branch name and creates it from the current `HEAD`, then switches to it. The name is checked with `git check-ref-format --branch` before it is used, so Git itself decides what a valid branch name is.
+- **Upstream and ahead/behind counters.** The header shows the tracking branch and how far the current branch has drifted from it, as `↑2 ↓1`.
+- **A failure dialog that points at the Console.** A failed branch operation opens a modal with one sentence about what went wrong, a note that the full message was written to the Console, and three buttons: *Open Console*, *Copy details*, and *Close*. The common Git failures each get their own sentence — local changes that the switch would overwrite, a branch that no longer exists, an invalid name, a name that is already taken, and a branch that another worktree holds.
+
+### Changed
+
+- **Every git command now runs on a worker thread.** Status collection, staging, unstaging, committing, `git init`, the branch listing, and the checkout itself all happen off the render thread, which only draws the last snapshot it received. A large repository no longer stalls the Editor, and a checkout that takes a while no longer freezes the frame.
+- **The status comes from `git status --porcelain=v2 -z --branch`.** One call now returns the branch name, the upstream, the ahead/behind counters, and the file list, instead of the file list alone. The `-z` form keeps a path that is not plain ASCII literal, where the older format quoted it as an octal escape.
+- **Git output is decoded as UTF-8 on purpose.** The panel no longer depends on the console code page of the machine it runs on, so Chinese commit messages and Chinese file names survive on a Windows that is not running in UTF-8.
+- Every call to `git` now lives in the new `package/editor/wokrlie/git_integration/git.py` module, so the panel no longer talks to `subprocess` itself. That module never touches the Engine API, which is what makes it safe to call from a worker thread.
+
+### Fixed
+
+- **The panel reported Git failures as Python tracebacks instead of the real error.** Every failure path called `Debug.error(...)`, which is not an Engine API — the Engine provides `Debug.log_error`. The call raised `AttributeError` before the Git message could be logged, so the reason a commit, a stage, or `git init` failed never reached the Console. The errors are now written with `Debug.log_error(...)` and tagged with the plugin's source, so the Console can group and clear them. The entry quotes the command line, the exit code, and Git's own message, so the failure can be reproduced by hand.
+- **Non-ASCII file names were shown as octal escapes.** The old parser read the v1 porcelain format, in which Git quotes a path that is not plain ASCII, so a file called `文档/说明.md` appeared as `"\346\226\207..."`. The panel now reads the `-z` format, where the path is written literally.
+
+### Requirements
+
+- **Git 2.13 or newer.** `git status --porcelain=v2` needs Git 2.11, and the `%(upstream:short)` field of `git for-each-ref` needs Git 2.13. Both are from 2016 and 2017; any current distribution is well past them.
+
 ## 0.1.5
 
 ### Added
@@ -16,10 +41,6 @@ All notable changes to the Git Integration plugin are documented in this file. T
 
 - The icon artwork is embedded in the plugin and rasterized at runtime through the Engine's LunaSVG backend. The package stays a single deterministic archive, and one vector asset can be drawn in any colour.
 - The status code keeps its Git spelling, so a dual state such as `AM` stays readable next to its icon.
-
-### Fixed
-
-- **The panel reported Git failures as Python tracebacks instead of the real error.** Every failure path called `Debug.error(...)`, which is not an Engine API — the Engine provides `Debug.log_error`. The call raised `AttributeError` before the Git message could be logged, so the reason a commit, a stage, or `git init` failed never reached the Console. The errors are now written with `Debug.log_error(...)` and tagged with the plugin's source, so the Console can group and clear them.
 
 ### Dependencies
 
