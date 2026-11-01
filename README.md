@@ -15,7 +15,9 @@ A source control panel for the [Infernux Engine](https://github.com/ChenlizheMe/
 - Commit flow with a persistent message buffer and empty-message validation.
 - Automatic refresh of the file lists, plus a manual refresh button.
 - Files with a dual status (for example `AM`) appear in both lists, matching `git status`.
+- Vector icons for the stage, unstage, stage-all, and refresh controls, plus a status icon and a coloured status code on every file row.
 - Localized panel UI in English and Simplified Chinese.
+- The plugin's own licence and the notices for the bundled icon artwork ship with the plugin and are shown on the **License** page of the plugin information.
 
 ## Requirements
 
@@ -25,6 +27,8 @@ A source control panel for the [Infernux Engine](https://github.com/ChenlizheMe/
 | Git | A recent version available on your `PATH` |
 
 Git is a **runtime requirement**. The panel shells out to the `git` executable; when it is missing, the panel shows a short notice instead of the file lists.
+
+The icons are vector artwork that the Editor rasterizes at runtime. That relies on the Engine's LunaSVG-backed texture loader, which is not part of the documented plugin API — if a future Engine release drops it, the panel falls back to text-only controls and everything else keeps working.
 
 ## Installation
 
@@ -84,7 +88,10 @@ The Editor-only code lives in `package/editor/`, and the runtime surface in `pac
 | [ROADMAP.md](ROADMAP.md) | Planned features |
 | [CONTRIBUTING.md](CONTRIBUTING.md) | Contribution and commit conventions |
 | [RELEASING.md](RELEASING.md) | Release procedure |
+| [package/plugin_pages/license.md](package/plugin_pages/license.md) | Plugin licence and third-party notices for the bundled artwork |
 
 ## License
 
 [MIT](LICENSE).
+
+The same licence text and the notices for the bundled icon artwork ship inside the plugin archive, on the **License** page of the plugin information.

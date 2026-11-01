@@ -12,6 +12,9 @@ from infernux.engine.interaction import PanelInteractionDescriptor
 from infernux.engine.project_context import get_project_root
 from infernux.engine.ui.editor_panel import EditorPanel
 from infernux.engine.ui.panel_registry import editor_panel
+from infernux.engine.ui.theme import ImGuiCol
+
+from .icons import IconCache, NEUTRAL_COLOR, STATUS_COLORS, STATUS_LABELS
 
 
 @editor_panel(
@@ -46,6 +49,10 @@ class GitIntegrationPanel(EditorPanel):
         self._refresh_interval: float = 1.0
         self._git_checked: bool = False
 
+        self._icons: IconCache | None = None
+        self._icon_size: float = 16.0
+        self._button_size: float = 18.0
+
     # ------------------------------------------------------------------ #
     # 生命周期（保持惰性初始化，避免 on_enable 崩溃）
     # ------------------------------------------------------------------ #
@@ -66,6 +73,56 @@ class GitIntegrationPanel(EditorPanel):
         every read so switching projects does not leave a stale path behind.
         """
         return get_project_root() or os.getcwd()
+
+    # ------------------------------------------------------------------ #
+    # 图标（Lucide SVG → 运行时光栅化 → ImGui 纹理）
+    # ------------------------------------------------------------------ #
+    def _icon_cache(self) -> IconCache | None:
+        """Return the icon cache, creating it once the renderer is reachable."""
+        if self._icons is None:
+            try:
+                services = self.services
+                native = services.native_engine if services is not None else None
+            except Exception:  # noqa: BLE001 - the panel must never fail to open
+                native = None
+            if native is None:
+                return None
+            self._icons = IconCache(native)
+        return self._icons
+
+    def _icon(self, name: str, color=NEUTRAL_COLOR) -> int:
+        """Return the ImGui texture id for one icon, or ``0`` when unavailable."""
+        cache = self._icon_cache()
+        if cache is None:
+            return 0
+        return cache.get(name, color)
+
+    def _status_icon(self, status: str) -> int:
+        """Return the ImGui texture id for a git porcelain status code."""
+        cache = self._icon_cache()
+        if cache is None:
+            return 0
+        return cache.status_icon(status)
+
+    def _tooltip(self, ctx, text: str) -> None:
+        """Show *text* as a tooltip for the widget that was just rendered."""
+        if ctx.is_item_hovered():
+            ctx.set_tooltip(text)
+
+    def _icon_button(self, ctx, widget_id: str, icon: str, tooltip: str, on_click) -> None:
+        """Render one icon button, with a tooltip, when its texture exists.
+
+        ``image_button`` silently does nothing while the texture is still
+        uploading, so the button and its tooltip are skipped together. That
+        keeps the tooltip attached to the right widget instead of drifting
+        onto the previous one.
+        """
+        texture = self._icon(icon)
+        if not texture:
+            return
+        if ctx.image_button(widget_id, texture, self._button_size, self._button_size):
+            on_click()
+        self._tooltip(ctx, tooltip)
 
     def on_render_content(self, ctx) -> None:
         if not self._git_checked:
@@ -104,7 +161,13 @@ class GitIntegrationPanel(EditorPanel):
     def _render_git_ui(self, ctx) -> None:
         ctx.label(t("wokrlie.git_integration.source_control"))
         ctx.same_line()
-        ctx.button("⟳##refresh_git", self._manual_refresh, 28.0, 20.0)
+        self._icon_button(
+            ctx,
+            "##refresh_git",
+            "refresh",
+            t("wokrlie.git_integration.refresh"),
+            self._manual_refresh,
+        )
 
         ctx.begin_group("Changes")
         try:
@@ -130,6 +193,48 @@ class GitIntegrationPanel(EditorPanel):
         finally:
             ctx.end_group()
 
+    def _render_file_row(self, ctx, path: str, status: str, staged: bool) -> None:
+        """Render one file row: status icon, path, coloured code, action button.
+
+        The status code keeps its Git spelling so that a dual state such as
+        ``AM`` stays readable, and it is coloured by the kind of change. The
+        leading icon repeats that meaning as a shape, which is what carries
+        the meaning when the code is hard to spot in a dense list.
+        """
+        icon = self._status_icon(status)
+        if icon:
+            ctx.image(icon, self._icon_size, self._icon_size)
+            ctx.same_line()
+
+        ctx.label(path)
+        ctx.same_line()
+
+        color = STATUS_COLORS.get(status, NEUTRAL_COLOR)
+        ctx.push_style_color(ImGuiCol.Text, *color)
+        ctx.label(status)
+        ctx.pop_style_color()
+        label_key = STATUS_LABELS.get(status)
+        if label_key:
+            self._tooltip(ctx, t(label_key))
+        ctx.same_line()
+
+        if staged:
+            self._icon_button(
+                ctx,
+                f"##unstage_{path}",
+                "unstage",
+                t("wokrlie.git_integration.unstage_file"),
+                lambda p=path: self.unstage_file(p),
+            )
+        else:
+            self._icon_button(
+                ctx,
+                f"##stage_{path}",
+                "stage",
+                t("wokrlie.git_integration.stage_file"),
+                lambda p=path: self.stage_file(p),
+            )
+
     def _render_staged_section(self, ctx) -> None:
         expanded = ctx.collapsing_header(
             f"{t('wokrlie.git_integration.staged_changes')} "
@@ -143,14 +248,7 @@ class GitIntegrationPanel(EditorPanel):
             return
 
         for path, status in sorted(self.staged_files.items()):
-            ctx.label(f"    {status}  {path}")
-            ctx.same_line()
-            ctx.button(
-                f"-##unstage_{path}",
-                lambda p=path: self.unstage_file(p),
-                20.0,
-                18.0,
-            )
+            self._render_file_row(ctx, path, status, staged=True)
 
     def _render_changes_section(self, ctx) -> None:
         total = len(self.unstaged_files) + len(self.untracked_files)
@@ -160,6 +258,10 @@ class GitIntegrationPanel(EditorPanel):
 
         # Stage all 放到 header 下一行，避免 same_line 遮挡点击区域
         if total > 0:
+            stage_all_icon = self._icon("stage-all")
+            if stage_all_icon:
+                ctx.image(stage_all_icon, self._icon_size, self._icon_size)
+                ctx.same_line()
             ctx.button(
                 f"{t('wokrlie.git_integration.stage_all')}##stage_all",
                 self.stage_all,
@@ -175,24 +277,10 @@ class GitIntegrationPanel(EditorPanel):
             return
 
         for path, status in sorted(self.unstaged_files.items()):
-            ctx.label(f"    {status}  {path}")
-            ctx.same_line()
-            ctx.button(
-                f"+##stage_{path}",
-                lambda p=path: self.stage_file(p),
-                20.0,
-                18.0,
-            )
+            self._render_file_row(ctx, path, status, staged=False)
 
         for path in sorted(self.untracked_files):
-            ctx.label(f"    ?  {path}")
-            ctx.same_line()
-            ctx.button(
-                f"+##stage_{path}",
-                lambda p=path: self.stage_file(p),
-                20.0,
-                18.0,
-            )
+            self._render_file_row(ctx, path, "?", staged=False)
 
     # ------------------------------------------------------------------ #
     # Git 可用性检测（与仓库检测分离）

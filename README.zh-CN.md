@@ -15,7 +15,9 @@
 - 提交流程：消息缓冲区持久保留，空消息会被拦截。
 - 文件列表自动刷新，并提供手动刷新按钮。
 - 双状态文件（例如 `AM`）会同时出现在两个列表中，与 `git status` 的行为一致。
+- 暂存、取消暂存、暂存全部和刷新按钮使用矢量图标；每个文件行还带有状态图标和带颜色的状态码。
 - 面板界面支持英文与简体中文。
+- 插件自身的许可证和内置图标素材的第三方声明随插件一起分发，可在插件信息的**许可证**页面查看。
 
 ## 环境要求
 
@@ -84,7 +86,10 @@ python package.py verify dist/plugin.inxpkg  # 校验构建产物
 | [ROADMAP.md](ROADMAP.md) | 后续计划 |
 | [CONTRIBUTING.md](CONTRIBUTING.md) | 贡献与提交规范 |
 | [RELEASING.md](RELEASING.md) | 发布流程 |
+| [package/plugin_pages/license.md](package/plugin_pages/license.md) | 插件许可证与内置素材的第三方声明 |
 
 ## 许可证
 
 [MIT](LICENSE)。
+
+同一份许可证文本和内置图标素材的第三方声明也随插件归档一起分发，可在插件信息的**许可证**页面查看。

@@ -2,6 +2,27 @@
 
 All notable changes to the Git Integration plugin are documented in this file. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## 0.1.5
+
+### Added
+
+- Vector icons across the panel. The stage, unstage, stage-all, and refresh controls are now Lucide icons instead of the `+`, `-`, and `⟳` characters, and every file row leads with an icon for its kind of change.
+- Coloured file status. The Git status code of each file is now drawn in the colour of that change — added is green, modified is yellow, deleted is red, untracked is cyan, renamed is blue, and a conflict is orange.
+- Tooltips on the icon controls and on the status code, naming the action and the kind of change.
+- A **License** page in the plugin information, which carries the plugin's own MIT licence and the notices for the bundled icon artwork.
+- `package/plugin_pages/LICENSE` ships the plugin's licence inside the archive, and `package/plugin_pages/license.md` reproduces that licence together with the third-party notices as the plugin's License page. ISC and MIT both require their notice to travel with every copy, so a notice that only lived in the repository would not satisfy them.
+
+### Changed
+
+- The icon artwork is embedded in the plugin and rasterized at runtime through the Engine's LunaSVG backend. The package stays a single deterministic archive, and one vector asset can be drawn in any colour.
+- The status code keeps its Git spelling, so a dual state such as `AM` stays readable next to its icon.
+
+### Dependencies
+
+- **The panel now depends on an undocumented Engine capability.** The icons are rasterized at runtime through the Engine's LunaSVG-backed texture loader, which is not part of the documented plugin API. Vector artwork could not previously be shipped inside a plugin at all, because ImGui only draws raster textures.
+- If that capability is removed or changed in a future Engine release, the icons stop rendering and the panel falls back to text-only controls. Everything else in the panel keeps working, and the status codes stay readable.
+- The plugin needs no build-time conversion step and no pre-rendered PNG per colour, but it does need an Engine release that still ships the SVG rasterizer.
+
 ## 0.1.4
 
 ### Fixed
