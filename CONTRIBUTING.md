@@ -50,7 +50,9 @@ python package.py build dist/plugin.inxpkg && python package.py verify dist/plug
 ## Code conventions
 
 - The Editor half of the plugin lives in `package/editor/`, the player-facing half in `package/runtime/`. Runtime code must not import Editor modules; the validator enforces that boundary.
+- Every `git` call lives in `package/editor/wokrlie/git_integration/git.py`. The panel must not run a git command itself — that module is the only place that knows how git is invoked, how its output is decoded, and how its output is parsed.
 - Every `git` call must pass `cwd=` explicitly so the panel always operates on the folder open in the Editor.
+- Git commands run on a worker thread, never on the render thread. `GitCommand` in `git.py` starts one and the render thread only polls it for the result. A module in `git.py` must never touch the Engine API, because it also runs off the render thread.
 - Use `subprocess.run` with a timeout. The render thread must never block indefinitely.
 - Panel state that survives a render lives on the instance; it is never stored in a module-level global.
 

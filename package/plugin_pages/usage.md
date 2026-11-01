@@ -16,7 +16,7 @@ Git must be installed and reachable on your `PATH`. When it is not, the panel sh
 
 The normal view has four parts, from top to bottom:
 
-- **Source Control** — the header. The refresh icon on the right forces an immediate `git status`, skipping the refresh interval.
+- **Source Control** — the header. It shows the branch the project is currently on, and clicking it opens the branch list. The refresh icon on the right forces an immediate `git status`, skipping the refresh interval.
 - **Staged Changes** — files that will be included in the next commit.
 - **Changes** — files that have been modified or deleted but are not staged yet, plus untracked files.
 - **Commit area** — a message box and a **Commit** button.
@@ -51,6 +51,17 @@ At the end of the row sits the action button for that file.
 
 The panel updates the file lists automatically, at most once per second. If you want to see the current state immediately — for example after running Git commands in a terminal — click the refresh icon in the header.
 
+## Switching branches
+
+The header shows the branch the project is currently on, together with its upstream and how far it has drifted from it (`↑2 ↓1`). Click the branch to open the branch list.
+
+- The list shows the local branches first and the remote ones after them. The current branch is marked with a dot, and a branch that tracks another one shows its upstream on the right.
+- Type in the filter box to narrow the list down. The filter only changes what is shown; it runs no command.
+- Click a branch to switch to it. The switch runs in the background, so the panel stays responsive even in a large repository.
+- Type a name in the field at the bottom and click **Create** to make a branch from the current commit and switch to it. A branch name may contain `/`, for example `feature/new-panel`.
+
+If a switch fails — usually because the working tree has changes that the other branch would overwrite — a dialog explains what went wrong in one sentence and points at the Console, which is where the full Git message is kept. The dialog offers **Open Console**, **Copy details**, and **Close**.
+
 ## Troubleshooting
 
 **The panel reports that Git is not usable.** Git is not installed, or it is not on the `PATH` the Editor was started with. Install Git and restart the Editor.
@@ -79,4 +90,4 @@ https://github.com/Wokrlie/InxGitIntegration/blob/main/LICENSE
 
 ## Upcoming features
 
-Branch display and switching, discard-changes for unstaged files, Push/Pull controls, diff preview, and asynchronous `git status` execution are planned for future versions.
+Discard-changes for unstaged files, Push/Pull controls, and diff preview are planned for future versions.
