@@ -198,6 +198,29 @@ class GitRepositoryTests(unittest.TestCase):
         self.assertNotEqual(result.returncode, 0)
         self.assertTrue(result.stderr.strip())
 
+    def test_unstage_works_without_a_commit(self):
+        """``git reset HEAD -- <path>`` is enough in an empty repository."""
+        (self.repo / "fresh.txt").write_text("new", encoding="utf-8")
+        self.git("add", "-A")
+        self.assertEqual(self.snapshot().staged, {"fresh.txt": "A"})
+
+        result = self.runner.run("reset", "HEAD", "--", "fresh.txt")
+        self.assertTrue(result.ok, result.stderr)
+        snapshot = self.snapshot()
+        self.assertEqual(snapshot.staged, {})
+        self.assertEqual(snapshot.untracked, ["fresh.txt"])
+
+    def test_unstage_keeps_the_file_tracked_when_a_commit_exists(self):
+        self.commit()
+        (self.repo / "tracked.txt").write_text("changed", encoding="utf-8")
+        self.git("add", "-A")
+
+        result = self.runner.run("reset", "HEAD", "--", "tracked.txt")
+        self.assertTrue(result.ok, result.stderr)
+        snapshot = self.snapshot()
+        self.assertEqual(snapshot.staged, {})
+        self.assertEqual(snapshot.unstaged, {"tracked.txt": "M"})
+
     # -- async -------------------------------------------------------- #
     def wait_for(self, command):
         """Poll a worker command until it reports a result."""

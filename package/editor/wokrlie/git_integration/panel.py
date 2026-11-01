@@ -802,23 +802,10 @@ class GitIntegrationPanel(EditorPanel):
     def unstage_file(self, path: str) -> None:
         if not self.is_repo_initialized:
             return
-        self._start_action(self._unstage_task(path))
-
-    def _unstage_task(self, path: str):
-        """The commands that unstage one file.
-
-        ``git reset HEAD -- <path>`` is the usual route, but it fails in a
-        repository that has no commit yet, where the plain reset does it.
-        """
-        runner = self._runner()
-
-        def work() -> CommandResult:
-            result = runner.run("reset", "HEAD", "--", path, timeout=MUTATION_TIMEOUT)
-            if result.ok:
-                return result
-            return runner.run("reset", "--", path, timeout=MUTATION_TIMEOUT)
-
-        return work
+        # ``git reset HEAD -- <path>`` unstages the file in both cases: in a
+        # repository that has no commit yet, git falls back to the empty
+        # tree and the file returns to being untracked.
+        self._start_action(("reset", "HEAD", "--", path))
 
     # ------------------------------------------------------------------ #
     # 刷新辅助

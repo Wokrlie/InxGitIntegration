@@ -147,7 +147,12 @@ class GitCommand:
         args: tuple[str, ...],
         timeout: float = GIT_TIMEOUT,
     ) -> "GitCommand":
-        """Run one git command."""
+        """Run one git command.
+
+        *args* is the argument list of the command, for example
+        ``("checkout", "topic")``. The first argument also names the
+        worker thread, so a callable does not belong here.
+        """
         return cls(lambda: runner.run(*args, timeout=timeout), f"git {args[0]}")
 
     def start(self) -> None:
