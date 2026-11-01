@@ -14,15 +14,22 @@ from infernux.engine.ui.panel_registry import editor_panel
 from infernux.engine.ui.theme import ImGuiCol
 
 from .git import (
-    MUTATION_TIMEOUT,
     BranchInfo,
     CommandResult,
     GitCommand,
     GitRunner,
     StatusSnapshot,
+    checkout,
+    commit,
+    create_branch,
+    delete_branch,
+    init_repository,
     is_safe_branch_name,
     read_repository_state,
-    validate_branch_name,
+    rename_branch,
+    stage_all,
+    stage_file,
+    unstage_file,
 )
 from .icons import IconCache, NEUTRAL_COLOR, STATUS_COLORS, STATUS_LABELS
 
@@ -78,6 +85,9 @@ class GitIntegrationPanel(EditorPanel):
         self._branches: list[BranchInfo] = []
         self._branch_filter: str = ""
         self._new_branch: str = ""
+        self._selected_branch: str = ""
+        self._rename_open: bool = False
+        self._rename_name: str = ""
 
         self._error: str = ""
         self._error_detail: str = ""
@@ -87,7 +97,6 @@ class GitIntegrationPanel(EditorPanel):
         self._commit_message: str = ""
         self._last_refresh: float = 0.0
         self._refresh_interval: float = 1.0
-        self._git_checked: bool = False
 
         self._icons: IconCache | None = None
         self._icon_size: float = 16.0
@@ -97,7 +106,6 @@ class GitIntegrationPanel(EditorPanel):
     # 生命周期（保持惰性初始化，避免 on_enable 崩溃）
     # ------------------------------------------------------------------ #
     def on_enable(self) -> None:
-        self._git_checked = False
         self.have_git = False
         self.is_repo_initialized = False
         self._snapshot = StatusSnapshot()
@@ -107,6 +115,9 @@ class GitIntegrationPanel(EditorPanel):
         self._branches = []
         self._branch_filter = ""
         self._new_branch = ""
+        self._selected_branch = ""
+        self._rename_open = False
+        self._rename_name = ""
         self._error = ""
         self._error_detail = ""
         self._error_shown = False
@@ -193,19 +204,16 @@ class GitIntegrationPanel(EditorPanel):
     # 渲染主流程
     # ------------------------------------------------------------------ #
     def on_render_content(self, ctx) -> None:
-        if not self._git_checked:
-            self._check_git_availability()
-            self._git_checked = True
-
-        if not self.have_git:
-            ctx.label(t("wokrlie.git_integration.git_unavailable"))
-            return
-
         self._poll_background()
         self._schedule_status()
 
         if not self._state_known:
-            # The first status call has not answered yet.
+            # The first status call has not answered yet. Whether git is
+            # usable at all is answered by the same call.
+            return
+
+        if not self.have_git:
+            ctx.label(t("wokrlie.git_integration.git_unavailable"))
             return
 
         if not self.is_repo_initialized:
@@ -297,12 +305,132 @@ class GitIntegrationPanel(EditorPanel):
         if labels:
             clicked = ctx.selectable_list_clipped(labels)
             if 0 <= clicked < len(entries):
-                self._switch_to(entries[clicked])
+                self._select_branch(entries[clicked])
         else:
             ctx.label(t("wokrlie.git_integration.no_branches"))
 
         ctx.separator()
+        self._render_branch_actions(ctx)
+        ctx.separator()
         self._render_create_branch(ctx)
+
+    def _select_branch(self, branch: BranchInfo) -> None:
+        """Remember which branch the actions below the list apply to.
+
+        The list does not switch on a click any more: the actions need a
+        target, and the branch the project is on cannot be deleted.
+        """
+        if self._selected_branch == branch.name:
+            return
+        self._selected_branch = branch.name
+        self._rename_open = False
+        self._rename_name = ""
+
+    def _render_branch_actions(self, ctx) -> None:
+        """The actions that apply to the selected branch."""
+        name = self._selected_branch
+        if not name:
+            ctx.label(t("wokrlie.git_integration.select_a_branch"))
+            return
+
+        ctx.label(f"{t('wokrlie.git_integration.selected_branch')}: {name}")
+
+        ctx.button(
+            t("wokrlie.git_integration.checkout"),
+            lambda: self._checkout_selected(name),
+            90.0,
+            0.0,
+        )
+        ctx.same_line()
+        ctx.button(
+            t("wokrlie.git_integration.rename"),
+            self._open_rename,
+            90.0,
+            0.0,
+        )
+        ctx.same_line()
+        ctx.button(
+            t("wokrlie.git_integration.delete"),
+            lambda: self._delete_branch(name, False),
+            90.0,
+            0.0,
+        )
+        ctx.same_line()
+        ctx.button(
+            t("wokrlie.git_integration.force_delete"),
+            lambda: self._delete_branch(name, True),
+            110.0,
+            0.0,
+        )
+        self._tooltip(ctx, t("wokrlie.git_integration.force_delete_hint"))
+
+        if self._rename_open:
+            self._render_rename_row(ctx, name)
+
+    def _render_rename_row(self, ctx, name: str) -> None:
+        """The row that renames the selected branch."""
+        ctx.set_next_item_width(200.0)
+        self._rename_name = ctx.input_text_with_hint(
+            "##git_rename_branch",
+            t("wokrlie.git_integration.rename_to"),
+            self._rename_name,
+            128,
+        )
+        ctx.same_line()
+        ctx.button(
+            t("wokrlie.git_integration.rename"),
+            lambda: self._rename_branch(name),
+            90.0,
+            0.0,
+        )
+        ctx.same_line()
+        ctx.button(
+            t("wokrlie.git_integration.cancel"),
+            self._close_rename,
+            90.0,
+            0.0,
+        )
+
+    def _open_rename(self) -> None:
+        """Show the row that renames the selected branch."""
+        self._rename_open = True
+
+    def _close_rename(self) -> None:
+        """Hide the rename row again."""
+        self._rename_open = False
+        self._rename_name = ""
+
+    def _checkout_selected(self, name: str) -> None:
+        """Switch to the selected branch."""
+        for branch in self._branch_rows():
+            if branch.name == name:
+                self._switch_to(branch)
+                return
+        self._report_failure(
+            t("wokrlie.git_integration.error_branch_missing"), name
+        )
+
+    def _rename_branch(self, name: str) -> None:
+        """Rename the selected branch."""
+        new_name = self._rename_name.strip()
+        if not new_name:
+            self._report_failure(
+                t("wokrlie.git_integration.error_invalid_name"),
+                "A new branch name is needed.",
+            )
+            return
+        runner = self._runner()
+        self._start_action(
+            lambda: rename_branch(runner, name, new_name), report=True
+        )
+        self._close_rename()
+
+    def _delete_branch(self, name: str, force: bool) -> None:
+        """Delete the selected branch."""
+        runner = self._runner()
+        self._start_action(
+            lambda: delete_branch(runner, name, force), report=True
+        )
 
     def _render_current_branch(self, ctx) -> None:
         """The branch the project is on, with its upstream and its drift."""
@@ -360,9 +488,12 @@ class GitIntegrationPanel(EditorPanel):
         for branch in self._branch_rows():
             if needle and needle not in branch.name.casefold():
                 continue
-            label = branch.name
+            marker = ""
+            if branch.name == self._selected_branch:
+                marker += "▸"
             if branch.current:
-                label = f"● {label}"
+                marker += "●"
+            label = f"{marker} {branch.name}" if marker else branch.name
             if branch.upstream:
                 label = f"{label}    {branch.upstream}"
             labels.append(label)
@@ -410,18 +541,21 @@ class GitIntegrationPanel(EditorPanel):
                 f"`git checkout {branch.name}` is not a valid branch name.",
             )
             return
-        self._start_action(("checkout", branch.name), MUTATION_TIMEOUT, report=True)
+        name = branch.name
+        runner = self._runner()
+        self._start_action(lambda: checkout(runner, name), report=True)
 
     def _create_branch(self) -> None:
         """Create a branch from the current HEAD and switch to it."""
-        name = validate_branch_name(self._runner(), self._new_branch)
+        name = self._new_branch.strip()
         if not name:
             self._report_failure(
                 t("wokrlie.git_integration.error_invalid_name"),
-                f"`git checkout -b {self._new_branch}` is not a valid branch name.",
+                "A branch name is needed.",
             )
             return
-        self._start_action(("checkout", "-b", name), MUTATION_TIMEOUT, report=True)
+        runner = self._runner()
+        self._start_action(lambda: create_branch(runner, name), report=True)
 
     # ------------------------------------------------------------------ #
     # 文件列表
@@ -521,15 +655,10 @@ class GitIntegrationPanel(EditorPanel):
     # ------------------------------------------------------------------ #
     # Git 可用性检测（与仓库检测分离）
     # ------------------------------------------------------------------ #
-    def _check_git_availability(self) -> None:
-        try:
-            result = self._runner().run("--version", timeout=5)
-            self.have_git = result.ok
-        except Exception:  # noqa: BLE001 - the panel must never fail to open
-            self.have_git = False
-
-        if not self.have_git:
-            self._log_error("Git is not usable in current environment.")
+    def _report_git_missing(self) -> None:
+        """Record that git could not be started at all."""
+        self.have_git = False
+        self._log_error("Git is not usable in current environment.")
 
     # ------------------------------------------------------------------ #
     # 后台执行
@@ -537,6 +666,10 @@ class GitIntegrationPanel(EditorPanel):
     def _schedule_status(self) -> None:
         """Start a status refresh when the previous one is done and due."""
         if self._status_command is not None or self._action_command is not None:
+            return
+        if self._state_known and not self.have_git:
+            # Git could not be started. Trying again would only spawn a
+            # process that cannot start.
             return
         now = time.time()
         if now - self._last_refresh < self._refresh_interval:
@@ -556,12 +689,16 @@ class GitIntegrationPanel(EditorPanel):
 
     def _start_action(
         self,
-        args: tuple[str, ...],
-        timeout: float = MUTATION_TIMEOUT,
+        job,
         report: bool = False,
         on_success=None,
     ) -> None:
-        """Start one mutating git command in the background.
+        """Start one mutating git job in the background.
+
+        *job* is a callable that runs the command and returns its
+        result. It runs on a worker thread, so it must not touch the
+        Engine API: the runner it needs is captured on the render thread
+        before the job is handed over.
 
         *report* turns a failure into the modal dialog; the routine
         operations only write to the Console.
@@ -570,7 +707,7 @@ class GitIntegrationPanel(EditorPanel):
             return
         self._action_report = report
         self._action_on_success = on_success
-        self._action_command = GitCommand.command(self._runner(), args, timeout)
+        self._action_command = GitCommand(job, "git action")
         self._action_command.start()
 
     def _poll_background(self) -> None:
@@ -592,11 +729,14 @@ class GitIntegrationPanel(EditorPanel):
     def _apply_state(self, state) -> None:
         """Store the repository state the worker thread reported."""
         self._state_known = True
+        self.have_git = state.available
         self.is_repo_initialized = state.inside
         if state.snapshot is not None:
             self._snapshot = state.snapshot
         if state.inside:
             self._branches = state.branches
+        elif not state.available:
+            self._report_git_missing()
         elif state.error is not None:
             self._log_error(f"`git status` failed: {state.error.summary}")
 
@@ -631,17 +771,30 @@ class GitIntegrationPanel(EditorPanel):
         self._last_refresh = 0.0
 
     def _describe_failure(self, result: CommandResult) -> str:
-        """Turn a git failure into a message the user can act on."""
+        """Turn a git failure into a message the user can act on.
+
+        The wording of git's own messages differs between versions — an
+        older git says ``Cannot delete branch 'x' checked out at ...``
+        where a newer one says ``cannot delete branch 'x' used by
+        worktree at ...`` — so the text is matched in lower case.
+        """
         text = f"{result.stderr}\n{result.stdout}"
-        if "would be overwritten by checkout" in text:
+        lowered = text.lower()
+        if "would be overwritten by checkout" in lowered:
             return t("wokrlie.git_integration.error_local_changes")
-        if "pathspec" in text or "did not match any file" in text:
+        if "not fully merged" in lowered:
+            return t("wokrlie.git_integration.error_branch_not_merged")
+        if "delete branch" in lowered:
+            return t("wokrlie.git_integration.error_delete_current")
+        if "pathspec" in lowered or "did not match any file" in lowered:
             return t("wokrlie.git_integration.error_branch_missing")
-        if "not a valid branch name" in text:
+        if "not found" in lowered:
+            return t("wokrlie.git_integration.error_branch_missing")
+        if "not a valid branch name" in lowered:
             return t("wokrlie.git_integration.error_invalid_name")
-        if "already exists" in text:
+        if "already exists" in lowered:
             return t("wokrlie.git_integration.error_branch_exists")
-        if "already used by worktree" in text:
+        if "already used by worktree" in lowered:
             return t("wokrlie.git_integration.error_worktree")
         return t("wokrlie.git_integration.error_generic")
 
@@ -736,7 +889,7 @@ class GitIntegrationPanel(EditorPanel):
                 f"Cannot initialise a repository in a missing folder: {folder}"
             )
             return
-        self._start_action(("init",), MUTATION_TIMEOUT)
+        self._start_action(lambda: init_repository(self._runner()))
 
     def check_in_staged_changes(self, msg: str) -> None:
         if not msg or not msg.strip():
@@ -747,9 +900,10 @@ class GitIntegrationPanel(EditorPanel):
             self._log_error("No Git repository. Please create one first.")
             return
 
+        message = msg
+        runner = self._runner()
         self._start_action(
-            ("commit", "-m", msg),
-            MUTATION_TIMEOUT,
+            lambda: commit(runner, message),
             on_success=self._clear_commit_message,
         )
 
@@ -765,21 +919,21 @@ class GitIntegrationPanel(EditorPanel):
         """
         if not self.is_repo_initialized:
             return
-        self._start_action(("add", "--", path))
+        runner = self._runner()
+        self._start_action(lambda: stage_file(runner, path))
 
     def stage_all(self) -> None:
         """暂存所有变更（等价于 `git add -A`，包含修改、新增和删除）。"""
         if not self.is_repo_initialized:
             return
-        self._start_action(("add", "-A"))
+        runner = self._runner()
+        self._start_action(lambda: stage_all(runner))
 
     def unstage_file(self, path: str) -> None:
         if not self.is_repo_initialized:
             return
-        # ``git reset HEAD -- <path>`` unstages the file in both cases: in a
-        # repository that has no commit yet, git falls back to the empty
-        # tree and the file returns to being untracked.
-        self._start_action(("reset", "HEAD", "--", path))
+        runner = self._runner()
+        self._start_action(lambda: unstage_file(runner, path))
 
     # ------------------------------------------------------------------ #
     # 刷新辅助

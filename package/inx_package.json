@@ -2,7 +2,7 @@
   "$schema": "infernux.inxpackage.source",
   "reference": "wokrlie/git_integration",
   "name": "Git Integration",
-  "version": "0.2.0.1",
+  "version": "0.2.0.2",
   "engine": ">=0.4.1,<0.5",
   "intro": "Git source control for the Infernux Engine: stage, unstage, commit, and switch branches straight from the editor.",
   "intros": {

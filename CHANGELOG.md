@@ -2,6 +2,18 @@
 
 All notable changes to the Git Integration plugin are documented in this file. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## 0.2.0.2
+
+### Added
+
+- **Deleting a branch.** Pick a branch in the list and delete it. The plain **Delete** lets git refuse a branch whose commits were never merged; **Force delete** removes it anyway, and git's reflog still keeps those commits.
+- **Renaming a branch.** Pick a branch, choose **Rename**, and give it a new name. The new name is checked with `git check-ref-format --branch` first, so a name git would refuse never reaches the command.
+
+### Changed
+
+- **The branch list selects instead of switching.** Clicking a row now marks the branch that the actions below the list apply to, and **Checkout** switches to it. The branch the project is on cannot be deleted, so the actions need a target of their own.
+- **The panel no longer runs a git command on the render thread.** Creating a branch used to validate the name with `git check-ref-format` while the frame was being drawn, and the panel started with a `git --version` probe. Both moved into the background pass: the name is checked on the worker thread, and whether git is usable at all is answered by the exit code of the status command.
+
 ## 0.2.0.1
 
 ### Changed

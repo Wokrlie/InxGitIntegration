@@ -94,6 +94,8 @@ class RepositoryState:
 
     #: Whether the folder is inside a work tree.
     inside: bool
+    #: Whether git itself could be started at all.
+    available: bool = True
     #: The file lists and the branch state, when they could be read.
     snapshot: StatusSnapshot | None = None
     #: The local and remote branches.
@@ -294,6 +296,9 @@ def read_repository_state(runner: GitRunner) -> RepositoryState:
     comes from the refs, so it is cheap next to the status.
     """
     inside = runner.run("rev-parse", "--is-inside-work-tree")
+    if inside.returncode == 127:
+        # The runner reports 127 when git could not be started at all.
+        return RepositoryState(inside=False, available=False, error=inside)
     if not inside.ok or inside.stdout.strip() != "true":
         return RepositoryState(inside=False, error=inside)
     result = read_status(runner)
@@ -377,7 +382,69 @@ def checkout(runner: GitRunner, name: str) -> CommandResult:
 def create_branch(runner: GitRunner, name: str) -> CommandResult:
     """Create a branch from the current HEAD and switch to it.
 
+    The name is validated first, so the caller does not have to run a
+    second command of its own — and the validation does not happen on
+    the render thread.
+
     ``--`` is deliberately not used here: ``git checkout -- -b topic``
     switches pathspecs instead of creating a branch.
     """
-    return runner.run("checkout", "-b", name, timeout=MUTATION_TIMEOUT)
+    valid = validate_branch_name(runner, name)
+    if not valid:
+        return CommandResult(1, "", f"`{name}` is not a valid branch name.")
+    return runner.run("checkout", "-b", valid, timeout=MUTATION_TIMEOUT)
+
+
+def rename_branch(runner: GitRunner, old: str, new: str) -> CommandResult:
+    """Rename a local branch.
+
+    The new name is validated the same way a new branch name is, so a
+    rename cannot smuggle a name past git that git would refuse.
+    """
+    valid = validate_branch_name(runner, new)
+    if not valid:
+        return CommandResult(1, "", f"`{new}` is not a valid branch name.")
+    return runner.run("branch", "-m", old, valid, timeout=MUTATION_TIMEOUT)
+
+
+def delete_branch(
+    runner: GitRunner, name: str, force: bool = False
+) -> CommandResult:
+    """Delete a local branch.
+
+    Without *force* git refuses to delete a branch whose commits were
+    never merged into the current branch or into its upstream.
+    """
+    return runner.run(
+        "branch", "-D" if force else "-d", name, timeout=MUTATION_TIMEOUT
+    )
+
+
+def stage_file(runner: GitRunner, path: str) -> CommandResult:
+    """Stage one file, including a deletion."""
+    return runner.run("add", "--", path, timeout=MUTATION_TIMEOUT)
+
+
+def stage_all(runner: GitRunner) -> CommandResult:
+    """Stage every change, the same as ``git add -A``."""
+    return runner.run("add", "-A", timeout=MUTATION_TIMEOUT)
+
+
+def unstage_file(runner: GitRunner, path: str) -> CommandResult:
+    """Unstage one file.
+
+    ``git reset HEAD -- <path>`` unstages the file in both cases: in a
+    repository that has no commit yet, git falls back to the empty tree
+    and the file returns to being untracked.
+    """
+    return runner.run("reset", "HEAD", "--", path, timeout=MUTATION_TIMEOUT)
+
+
+def commit(runner: GitRunner, message: str) -> CommandResult:
+    """Create a commit from the staged changes."""
+    return runner.run("commit", "-m", message, timeout=MUTATION_TIMEOUT)
+
+
+def init_repository(runner: GitRunner) -> CommandResult:
+    """Create a repository in the folder."""
+    return runner.run("init", timeout=MUTATION_TIMEOUT)

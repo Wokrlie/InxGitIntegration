@@ -21,11 +21,18 @@ from git_integration.git import (  # noqa: E402
     GitCommand,
     GitRunner,
     checkout,
+    commit,
     create_branch,
+    delete_branch,
+    init_repository,
     list_branches,
     parse_status,
     read_repository_state,
     read_status,
+    rename_branch,
+    stage_all,
+    stage_file,
+    unstage_file,
     validate_branch_name,
 )
 
@@ -241,6 +248,80 @@ class GitRepositoryTests(unittest.TestCase):
         snapshot = self.snapshot()
         self.assertEqual(snapshot.staged, {})
         self.assertEqual(snapshot.unstaged, {"tracked.txt": "M"})
+
+    # -- branch maintenance ------------------------------------------- #
+    def test_renaming_a_branch_keeps_the_commits(self):
+        self.commit()
+        self.git("branch", "old-name")
+        result = rename_branch(self.runner, "old-name", "new/name")
+        self.assertTrue(result.ok, result.stderr)
+        names = [branch.name for branch in list_branches(self.runner)]
+        self.assertIn("new/name", names)
+        self.assertNotIn("old-name", names)
+
+    def test_renaming_onto_an_existing_name_is_refused(self):
+        self.commit()
+        self.git("branch", "taken")
+        result = rename_branch(self.runner, "main", "taken")
+        self.assertFalse(result.ok)
+        self.assertIn("already exists", result.stderr)
+
+    def test_renaming_to_an_invalid_name_never_reaches_git(self):
+        self.commit()
+        result = rename_branch(self.runner, "main", "-danger")
+        self.assertFalse(result.ok)
+        self.assertIn("not a valid branch name", result.stderr)
+
+    def test_creating_a_branch_with_an_invalid_name_is_refused(self):
+        self.commit()
+        result = create_branch(self.runner, "-danger")
+        self.assertFalse(result.ok)
+        self.assertIn("not a valid branch name", result.stderr)
+
+    def test_deleting_a_merged_branch_works(self):
+        self.commit()
+        self.git("branch", "gone")
+        result = delete_branch(self.runner, "gone")
+        self.assertTrue(result.ok, result.stderr)
+        names = [branch.name for branch in list_branches(self.runner)]
+        self.assertNotIn("gone", names)
+
+    def test_deleting_an_unmerged_branch_needs_the_force(self):
+        self.commit()
+        self.git("checkout", "-b", "work")
+        (self.repo / "tracked.txt").write_text("work", encoding="utf-8")
+        self.git("commit", "-am", "work")
+        self.git("checkout", "main")
+
+        result = delete_branch(self.runner, "work")
+        self.assertFalse(result.ok)
+        self.assertIn("not fully merged", result.stderr)
+
+        forced = delete_branch(self.runner, "work", force=True)
+        self.assertTrue(forced.ok, forced.stderr)
+        names = [branch.name for branch in list_branches(self.runner)]
+        self.assertNotIn("work", names)
+
+    def test_the_branch_the_project_is_on_cannot_be_deleted(self):
+        self.commit()
+        result = delete_branch(self.runner, "main", force=True)
+        self.assertFalse(result.ok)
+        self.assertIn("delete branch", result.stderr.lower())
+
+    def test_the_operations_use_the_same_worker_as_the_panel(self):
+        """Every mutating operation returns a result the panel can report."""
+        self.commit()
+        (self.repo / "tracked.txt").write_text("changed", encoding="utf-8")
+        for result in (
+            stage_file(self.runner, "tracked.txt"),
+            unstage_file(self.runner, "tracked.txt"),
+            stage_all(self.runner),
+            commit(self.runner, "a message"),
+            checkout(self.runner, "main"),
+        ):
+            with self.subTest(command=result.command):
+                self.assertTrue(result.ok, result.stderr)
+                self.assertTrue(result.command.startswith("git "))
 
     # -- async -------------------------------------------------------- #
     def wait_for(self, command):

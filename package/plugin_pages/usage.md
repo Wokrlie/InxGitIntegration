@@ -59,8 +59,11 @@ The **Branches** section of the panel holds everything about branches. It opens 
 - The first line is the branch the project is currently on, together with its upstream and how far it has drifted from it (`↑2 ↓1`).
 - The list below shows the local branches first and the remote ones after them. The current branch is marked with a dot, and a branch that tracks another one shows its upstream on the right.
 - Type in the filter box to narrow the list down. The filter only changes what is shown; it runs no command.
-- Click a branch to switch to it. The switch runs in the background, so the panel stays responsive even in a large repository.
-- Type a name in the field at the bottom and click **Create** to make a branch from the current commit and switch to it. A branch name may contain `/`, for example `feature/new-panel`.
+- Click a branch to select it. The selected branch is marked with an arrow, and the actions below the list apply to it.
+- **Checkout** switches to the selected branch. The switch runs in the background, so the panel stays responsive even in a large repository.
+- **Rename** opens a field for the new name. The name is checked before it is used, and a branch name may contain `/`, for example `feature/new-panel`.
+- **Delete** removes the selected branch. Git refuses to delete a branch whose commits were never merged; **Force delete** removes it anyway, and the commits stay in git's reflog.
+- Type a name in the field at the bottom and click **Create** to make a branch from the current commit and switch to it.
 
 If a switch fails — usually because the working tree has changes that the other branch would overwrite — a dialog explains what went wrong in one sentence and points at the Console, which is where the full Git message is kept. The dialog offers **Open Console**, **Copy details**, and **Close**.
 
