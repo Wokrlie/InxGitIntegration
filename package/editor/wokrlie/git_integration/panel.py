@@ -18,6 +18,7 @@ from .git import (
     CommandResult,
     GitCommand,
     GitRunner,
+    LogEntry,
     StatusSnapshot,
     checkout,
     commit,
@@ -25,6 +26,7 @@ from .git import (
     delete_branch,
     init_repository,
     is_safe_branch_name,
+    read_log,
     read_repository_state,
     rename_branch,
     stage_all,
@@ -36,6 +38,8 @@ from .icons import IconCache, NEUTRAL_COLOR, STATUS_COLORS, STATUS_LABELS
 
 #: Longest branch name shown in the header before it is shortened.
 _MAX_BRANCH_LABEL = 28
+#: Longest commit subject shown in the branch log before it is shortened.
+_MAX_SUBJECT = 72
 #: Dimmed colour for secondary text such as the upstream of a branch.
 _DIM_COLOR = (0.55, 0.55, 0.58, 1.0)
 #: Colour of the branch name while HEAD is detached.
@@ -43,6 +47,18 @@ _DETACHED_COLOR = (0.95, 0.55, 0.20, 1.0)
 #: ImGui's ``ImGuiCond_FirstUseEver``. A section opens the first time the
 #: user sees it and then keeps whatever state they leave it in.
 _FIRST_USE = 4
+
+
+def _shorten(text: str) -> str:
+    """Cut a long text down to the width the panel can show.
+
+    A commit subject is a single line, and a line that runs past the edge
+    of the panel is cut off by ImGui without any hint, so the tail is
+    dropped here instead.
+    """
+    if len(text) <= _MAX_SUBJECT:
+        return text
+    return text[: _MAX_SUBJECT - 1] + "…"
 
 
 @editor_panel(
@@ -89,6 +105,11 @@ class GitIntegrationPanel(EditorPanel):
         self._rename_open: bool = False
         self._rename_name: str = ""
 
+        self._log_branch: str = ""
+        self._log_request: str = ""
+        self._log_entries: list[LogEntry] = []
+        self._log_command: GitCommand | None = None
+
         self._error: str = ""
         self._error_detail: str = ""
         self._error_shown: bool = False
@@ -118,6 +139,10 @@ class GitIntegrationPanel(EditorPanel):
         self._selected_branch = ""
         self._rename_open = False
         self._rename_name = ""
+        self._log_branch = ""
+        self._log_request = ""
+        self._log_entries = []
+        self._log_command = None
         self._error = ""
         self._error_detail = ""
         self._error_shown = False
@@ -311,6 +336,7 @@ class GitIntegrationPanel(EditorPanel):
 
         ctx.separator()
         self._render_branch_actions(ctx)
+        self._render_branch_log(ctx)
         ctx.separator()
         self._render_create_branch(ctx)
 
@@ -325,6 +351,10 @@ class GitIntegrationPanel(EditorPanel):
         self._selected_branch = branch.name
         self._rename_open = False
         self._rename_name = ""
+        # The log on screen belongs to the branch that was selected before,
+        # so it goes away instead of being shown under the new name.
+        self._log_branch = ""
+        self._log_entries = []
 
     def _render_branch_actions(self, ctx) -> None:
         """The actions that apply to the selected branch."""
@@ -391,6 +421,52 @@ class GitIntegrationPanel(EditorPanel):
             0.0,
         )
 
+    def _render_branch_log(self, ctx) -> None:
+        """The commit log of the selected branch.
+
+        The log is fetched in the background, so a branch with a long
+        history does not stall the frame.
+        """
+        name = self._selected_branch
+        if not name:
+            return
+        self._request_log(name)
+
+        ctx.set_next_item_open(True, _FIRST_USE)
+        if not ctx.collapsing_header(
+            f"{t('wokrlie.git_integration.branch_log')} "
+            f"({len(self._log_entries)})###branch_log"
+        ):
+            return
+
+        if not self._log_entries:
+            if self._log_command is not None:
+                ctx.label(t("wokrlie.git_integration.branch_log_loading"))
+            else:
+                ctx.label(t("wokrlie.git_integration.branch_log_empty"))
+            return
+
+        for entry in self._log_entries:
+            ctx.push_style_color(ImGuiCol.Text, *_DIM_COLOR)
+            ctx.label(entry.sha)
+            ctx.pop_style_color()
+            ctx.same_line()
+            ctx.label(_shorten(entry.subject))
+
+    def _request_log(self, name: str) -> None:
+        """Ask for the log of a branch when it is not on screen yet."""
+        if self._log_command is not None or not name:
+            return
+        if self._log_branch == name:
+            # The log of this branch is already here. A branch without any
+            # commit has an empty log, and asking again every frame would
+            # start a git process per frame.
+            return
+        runner = self._runner()
+        self._log_request = name
+        self._log_command = GitCommand(lambda: read_log(runner, name), "git log")
+        self._log_command.start()
+
     def _open_rename(self) -> None:
         """Show the row that renames the selected branch."""
         self._rename_open = True
@@ -421,7 +497,9 @@ class GitIntegrationPanel(EditorPanel):
             return
         runner = self._runner()
         self._start_action(
-            lambda: rename_branch(runner, name, new_name), report=True
+            lambda: rename_branch(runner, name, new_name),
+            report=True,
+            on_success=lambda: self._adopt_renamed_branch(name, new_name),
         )
         self._close_rename()
 
@@ -429,8 +507,31 @@ class GitIntegrationPanel(EditorPanel):
         """Delete the selected branch."""
         runner = self._runner()
         self._start_action(
-            lambda: delete_branch(runner, name, force), report=True
+            lambda: delete_branch(runner, name, force),
+            report=True,
+            on_success=lambda: self._forget_branch(name),
         )
+
+    def _adopt_renamed_branch(self, old: str, new: str) -> None:
+        """Follow the branch that was renamed.
+
+        The branch list still holds the old name until the next status
+        pass, so the selection is moved over by hand. Otherwise the
+        actions would keep aiming at a branch that no longer exists.
+        """
+        if self._selected_branch == old:
+            self._selected_branch = new
+        self._log_branch = ""
+        self._log_entries = []
+
+    def _forget_branch(self, name: str) -> None:
+        """Drop a branch that was deleted from the panel state."""
+        if self._selected_branch == name:
+            self._selected_branch = ""
+            self._rename_open = False
+            self._rename_name = ""
+        self._log_branch = ""
+        self._log_entries = []
 
     def _render_current_branch(self, ctx) -> None:
         """The branch the project is on, with its upstream and its drift."""
@@ -726,6 +827,26 @@ class GitIntegrationPanel(EditorPanel):
                 self._status_command = None
                 self._apply_state(state)
 
+        log = self._log_command
+        if log is not None:
+            entries = log.poll()
+            if entries is not None:
+                self._log_command = None
+                self._apply_log(entries)
+
+    def _apply_log(self, entries: list[LogEntry]) -> None:
+        """Store the log the worker thread reported."""
+        request = self._log_request
+        self._log_request = ""
+        if request != self._selected_branch:
+            # The selection changed while the log was loading. The next
+            # frame asks for the log of the branch that is selected now.
+            self._log_branch = ""
+            self._log_entries = []
+            return
+        self._log_branch = request
+        self._log_entries = entries
+
     def _apply_state(self, state) -> None:
         """Store the repository state the worker thread reported."""
         self._state_known = True
@@ -769,6 +890,9 @@ class GitIntegrationPanel(EditorPanel):
     def _after_mutation(self) -> None:
         """Ask for a fresh state after a mutating command finished."""
         self._last_refresh = 0.0
+        # A commit lands on the branch that was selected, so the log that
+        # is on screen is one commit behind now.
+        self._log_branch = ""
 
     def _describe_failure(self, result: CommandResult) -> str:
         """Turn a git failure into a message the user can act on.

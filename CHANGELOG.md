@@ -2,6 +2,19 @@
 
 All notable changes to the Git Integration plugin are documented in this file. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## 0.2.0.3
+
+### Added
+
+- **The commit log of a branch.** Selecting a branch also shows what is on it. The **Branch log** section lists the last 50 commits of the selected branch, newest first, each with its short hash and its subject. The log is fetched in the background, so a branch with a long history does not stall the frame.
+
+### Fixed
+
+- **The panel asked git for the log on every frame.** A branch without any commit has an empty log, and the request was only skipped when the log had entries to show. An empty log counts as loaded now, so the panel starts one `git log` instead of one per frame.
+- **The log of the previous branch stayed on screen after the selection changed.** Those entries belonged to the branch that was selected before, and they were drawn under the new name until the next log arrived. They are dropped when the selection changes.
+- **A new commit did not appear in the log.** The log is fetched again after every mutating command, so the commit that was just made shows up right away.
+- **Renaming or deleting a branch left the actions pointing at a branch that no longer existed.** The selection follows a branch that was renamed, and is cleared when the branch it named was deleted.
+
 ## 0.2.0.2
 
 ### Added

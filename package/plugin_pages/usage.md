@@ -17,7 +17,7 @@ Git must be installed and reachable on your `PATH`. When it is not, the panel sh
 The normal view has five parts, from top to bottom:
 
 - **Source Control** — the header. The refresh icon on the right forces an immediate `git status`, skipping the refresh interval.
-- **Branches** — the branch the project is on, the list of branches, and the row that creates a new one.
+- **Branches** — the branch the project is on, the list of branches, the actions that apply to the selected one, its commit log, and the row that creates a new branch.
 - **Staged Changes** — files that will be included in the next commit.
 - **Changes** — files that have been modified or deleted but are not staged yet, plus untracked files.
 - **Commit area** — a message box and a **Commit** button.
@@ -52,7 +52,7 @@ At the end of the row sits the action button for that file.
 
 The panel updates the file lists automatically, at most once per second. If you want to see the current state immediately — for example after running Git commands in a terminal — click the refresh icon in the header.
 
-## Switching branches
+## Managing branches
 
 The **Branches** section of the panel holds everything about branches. It opens the first time you open the panel, and you can fold it away like the file lists.
 
@@ -64,6 +64,10 @@ The **Branches** section of the panel holds everything about branches. It opens 
 - **Rename** opens a field for the new name. The name is checked before it is used, and a branch name may contain `/`, for example `feature/new-panel`.
 - **Delete** removes the selected branch. Git refuses to delete a branch whose commits were never merged; **Force delete** removes it anyway, and the commits stay in git's reflog.
 - Type a name in the field at the bottom and click **Create** to make a branch from the current commit and switch to it.
+
+### The branch log
+
+Under the actions sits the **Branch log**, which lists the commits of the selected branch, newest first. Every row shows the short hash of the commit and its subject. The log holds the last 50 commits and is fetched in the background, so a branch with a long history does not slow the panel down. It is fetched again after every commit, so a commit you just made shows up right away.
 
 If a switch fails — usually because the working tree has changes that the other branch would overwrite — a dialog explains what went wrong in one sentence and points at the Console, which is where the full Git message is kept. The dialog offers **Open Console**, **Copy details**, and **Close**.
 

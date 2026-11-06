@@ -27,6 +27,8 @@ GIT_TIMEOUT = 15.0
 MUTATION_TIMEOUT = 120.0
 #: Timeout for the branch name validation call.
 VALIDATION_TIMEOUT = 10.0
+#: How many commits the branch log shows.
+LOG_LIMIT = 50
 
 #: ``for-each-ref`` format: refname, short name, upstream, current marker.
 _BRANCH_FORMAT = "%(refname)%09%(refname:short)%09%(upstream:short)%09%(HEAD)"
@@ -86,6 +88,14 @@ class BranchInfo:
     remote: bool = False
     current: bool = False
     upstream: str = ""
+
+
+@dataclass(frozen=True)
+class LogEntry:
+    """One commit in a branch log."""
+
+    sha: str
+    subject: str
 
 
 @dataclass
@@ -351,6 +361,33 @@ def list_branches(runner: GitRunner) -> list[BranchInfo]:
                 BranchInfo(short, current=(head == "*"), upstream=upstream)
             )
     return branches
+
+
+def read_log(
+    runner: GitRunner, ref: str, limit: int = LOG_LIMIT
+) -> list[LogEntry]:
+    """The commits of a branch, newest first.
+
+    The subject is separated from the hash with a tab, so a subject that
+    contains spaces cannot be mistaken for part of the hash.
+    """
+    if not ref:
+        return []
+    result = runner.run(
+        "log",
+        f"--max-count={limit}",
+        "--format=%h%x09%s",
+        ref,
+        timeout=GIT_TIMEOUT,
+    )
+    if not result.ok:
+        return []
+    entries: list[LogEntry] = []
+    for line in result.stdout.splitlines():
+        sha, _, subject = line.partition("\t")
+        if sha:
+            entries.append(LogEntry(sha, subject))
+    return entries
 
 
 def validate_branch_name(runner: GitRunner, name: str) -> str:

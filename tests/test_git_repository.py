@@ -27,6 +27,7 @@ from git_integration.git import (  # noqa: E402
     init_repository,
     list_branches,
     parse_status,
+    read_log,
     read_repository_state,
     read_status,
     rename_branch,
@@ -322,6 +323,65 @@ class GitRepositoryTests(unittest.TestCase):
             with self.subTest(command=result.command):
                 self.assertTrue(result.ok, result.stderr)
                 self.assertTrue(result.command.startswith("git "))
+
+    # -- log ---------------------------------------------------------- #
+    def test_the_log_lists_the_commits_newest_first(self):
+        self.commit("first commit")
+        self.commit("second commit")
+
+        entries = read_log(self.runner, "main")
+        self.assertEqual(len(entries), 2)
+        self.assertEqual(
+            [entry.subject for entry in entries],
+            ["second commit", "first commit"],
+        )
+
+    def test_the_log_keeps_a_subject_that_contains_spaces(self):
+        self.commit("feat: add the panel 面板")
+
+        entries = read_log(self.runner, "main")
+        self.assertEqual(len(entries), 1)
+        self.assertEqual(entries[0].subject, "feat: add the panel 面板")
+
+    def test_the_log_reports_the_short_hash_of_each_commit(self):
+        self.commit()
+        head = self.git("rev-parse", "HEAD").stdout.strip()
+
+        entries = read_log(self.runner, "main")
+        self.assertTrue(head.startswith(entries[0].sha))
+        self.assertLessEqual(len(entries[0].sha), 7)
+
+    def test_the_log_of_a_branch_without_commits_is_empty(self):
+        """A branch that was never committed to has no log to show."""
+        self.assertEqual(read_log(self.runner, "main"), [])
+
+        self.commit()
+        self.git("checkout", "--orphan", "empty-branch")
+        self.assertEqual(read_log(self.runner, "empty-branch"), [])
+
+    def test_the_log_of_a_branch_that_does_not_exist_is_empty(self):
+        self.commit()
+        self.assertEqual(read_log(self.runner, "no-such-branch"), [])
+
+    def test_the_log_honours_the_limit(self):
+        for index in range(5):
+            self.commit(f"commit {index}")
+
+        entries = read_log(self.runner, "main", limit=2)
+        self.assertEqual(len(entries), 2)
+        self.assertEqual(entries[0].subject, "commit 4")
+
+    def test_the_log_follows_the_branch_it_was_asked_for(self):
+        self.commit("on main")
+        self.git("checkout", "-b", "side")
+        self.commit("on side")
+
+        main_entries = read_log(self.runner, "main")
+        side_entries = read_log(self.runner, "side")
+        self.assertEqual([entry.subject for entry in main_entries], ["on main"])
+        self.assertEqual(
+            [entry.subject for entry in side_entries], ["on side", "on main"]
+        )
 
     # -- async -------------------------------------------------------- #
     def wait_for(self, command):

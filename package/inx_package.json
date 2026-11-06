@@ -2,10 +2,10 @@
   "$schema": "infernux.inxpackage.source",
   "reference": "wokrlie/git_integration",
   "name": "Git Integration",
-  "version": "0.2.0.2",
+  "version": "0.2.0.3",
   "engine": ">=0.4.1,<0.5",
-  "intro": "Git source control for the Infernux Engine: stage, unstage, commit, and switch branches straight from the editor.",
+  "intro": "Git source control for the Infernux Engine: stage, unstage, commit, and switch, rename, or delete branches straight from the editor.",
   "intros": {
-    "zh-CN": "Infernux 引擎的 Git 源代码管理面板：直接在编辑器里暂存、取消暂存、提交和切换分支。"
+    "zh-CN": "Infernux 引擎的 Git 源代码管理面板：直接在编辑器里暂存、取消暂存、提交，以及切换、重命名或删除分支。"
   }
 }
