@@ -2,7 +2,7 @@
 
 Git 集成插件的所有重要变更都记录在本文件中。格式遵循 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，版本号遵循[语义化版本](https://semver.org/lang/zh-CN/)。
 
-## 0.2.0
+## 0.2.1
 
 ### 新增
 
