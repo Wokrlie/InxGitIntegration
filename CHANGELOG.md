@@ -2,57 +2,30 @@
 
 All notable changes to the Git Integration plugin are documented in this file. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## 0.2.0.3
-
-### Added
-
-- **The commit log of a branch.** Selecting a branch also shows what is on it. The **Branch log** section lists the last 50 commits of the selected branch, newest first, each with its short hash and its subject. The log is fetched in the background, so a branch with a long history does not stall the frame.
-
-### Fixed
-
-- **The panel asked git for the log on every frame.** A branch without any commit has an empty log, and the request was only skipped when the log had entries to show. An empty log counts as loaded now, so the panel starts one `git log` instead of one per frame.
-- **The log of the previous branch stayed on screen after the selection changed.** Those entries belonged to the branch that was selected before, and they were drawn under the new name until the next log arrived. They are dropped when the selection changes.
-- **A new commit did not appear in the log.** The log is fetched again after every mutating command, so the commit that was just made shows up right away.
-- **Renaming or deleting a branch left the actions pointing at a branch that no longer existed.** The selection follows a branch that was renamed, and is cleared when the branch it named was deleted.
-
-## 0.2.0.2
-
-### Added
-
-- **Deleting a branch.** Pick a branch in the list and delete it. The plain **Delete** lets git refuse a branch whose commits were never merged; **Force delete** removes it anyway, and git's reflog still keeps those commits.
-- **Renaming a branch.** Pick a branch, choose **Rename**, and give it a new name. The new name is checked with `git check-ref-format --branch` first, so a name git would refuse never reaches the command.
-
-### Changed
-
-- **The branch list selects instead of switching.** Clicking a row now marks the branch that the actions below the list apply to, and **Checkout** switches to it. The branch the project is on cannot be deleted, so the actions need a target of their own.
-- **The panel no longer runs a git command on the render thread.** Creating a branch used to validate the name with `git check-ref-format` while the frame was being drawn, and the panel started with a `git --version` probe. Both moved into the background pass: the name is checked on the worker thread, and whether git is usable at all is answered by the exit code of the status command.
-
-## 0.2.0.1
-
-### Changed
-
-- **The branches moved into their own section.** The branch list used to live behind a popup that the branch name in the header opened. It is now a **Branches** section in the panel, above the file lists: the branch the project is on, the list of local and remote branches with a filter, and the row that creates a new one. The section opens the first time the panel is shown and can be folded away like the file lists.
-- The branch list no longer needs a process of its own. The background status pass collects the branches together with the file lists now, so the list is always the one the repository actually has.
-
 ## 0.2.0
 
 ### Added
 
-- **Branch switching from the panel.** The panel header shows the current branch next to a branch icon, and clicking it opens a picker that lists the local branches together with the remote branches Git already knows about. Typing filters the list, and picking a branch switches to it with `git checkout`.
-- **Creating a branch from the panel.** The picker ends with a row that takes a new branch name and creates it from the current `HEAD`, then switches to it. The name is checked with `git check-ref-format --branch` before it is used, so Git itself decides what a valid branch name is.
-- **Upstream and ahead/behind counters.** The header shows the tracking branch and how far the current branch has drifted from it, as `↑2 ↓1`.
+- **Branch management from the panel.** A **Branches** section in the panel shows the branch the project is on — with its upstream and how far it has drifted from it (`↑2 ↓1`) — and lists the local branches together with the remote ones Git already knows about. The branches arrive together with the file lists in one background pass, so the list is always the one the repository actually has. Typing in the filter box narrows the list down; the filter only changes what is shown and runs no command.
+- **Switching branches.** Clicking a branch selects it — the selected branch is marked with an arrow — and the actions below the list apply to it. **Checkout** switches to it with `git checkout`. The switch runs on a worker thread, so the panel stays responsive even in a large repository.
+- **Creating a branch from the panel.** A row at the bottom of the section takes a new branch name and creates it from the current `HEAD`, then switches to it. The name is checked with `git check-ref-format --branch` before it is used, so Git itself decides what a valid branch name is, and a name starting with `-` is refused before it can reach a command line.
+- **Deleting a branch.** **Delete** removes the selected branch and lets git refuse a branch whose commits were never merged. **Force delete** removes it anyway, and git's reflog still keeps those commits.
+- **Renaming a branch.** **Rename** opens a field for the new name. The name is checked with `git check-ref-format --branch` first, so a name git would refuse never reaches the command.
+- **The commit log of a branch.** The **Branch log** section lists the last 50 commits of the selected branch, newest first, each with its short hash and its subject. The log is fetched in the background, so a branch with a long history does not stall the frame.
 - **A failure dialog that points at the Console.** A failed branch operation opens a modal with one sentence about what went wrong, a note that the full message was written to the Console, and three buttons: *Open Console*, *Copy details*, and *Close*. The common Git failures each get their own sentence — local changes that the switch would overwrite, a branch that no longer exists, an invalid name, a name that is already taken, and a branch that another worktree holds.
 
 ### Changed
 
-- **Every git command now runs on a worker thread.** Status collection, staging, unstaging, committing, `git init`, the branch listing, and the checkout itself all happen off the render thread, which only draws the last snapshot it received. A large repository no longer stalls the Editor, and a checkout that takes a while no longer freezes the frame.
+- **Every git command now runs on a worker thread.** Status collection, staging, unstaging, committing, `git init`, the branch listing, the branch log, and the checkout itself all happen off the render thread, which only draws the last snapshot it received. A large repository no longer stalls the Editor, and a checkout that takes a while no longer freezes the frame.
 - **The status comes from `git status --porcelain=v2 -z --branch`.** One call now returns the branch name, the upstream, the ahead/behind counters, and the file list, instead of the file list alone. The `-z` form keeps a path that is not plain ASCII literal, where the older format quoted it as an octal escape.
 - **Git output is decoded as UTF-8 on purpose.** The panel no longer depends on the console code page of the machine it runs on, so Chinese commit messages and Chinese file names survive on a Windows that is not running in UTF-8.
 - Every call to `git` now lives in the new `package/editor/wokrlie/git_integration/git.py` module, so the panel no longer talks to `subprocess` itself. That module never touches the Engine API, which is what makes it safe to call from a worker thread.
+- **The panel runs no git command on the render thread at all.** Whether git is usable is answered by the exit code of the status command instead of a separate `git --version` probe, and a branch name is validated on the worker thread instead of while the frame is being drawn.
 
 ### Fixed
 
 - **The panel reported Git failures as Python tracebacks instead of the real error.** Every failure path called `Debug.error(...)`, which is not an Engine API — the Engine provides `Debug.log_error`. The call raised `AttributeError` before the Git message could be logged, so the reason a commit, a stage, or `git init` failed never reached the Console. The errors are now written with `Debug.log_error(...)` and tagged with the plugin's source, so the Console can group and clear them. The entry quotes the command line, the exit code, and Git's own message, so the failure can be reproduced by hand.
+- **Unstaging a file raised `TypeError: 'function' object is not subscriptable`.** The action passed a function where the command factory expects the argument list of a git command, and the factory reads the first argument to name the worker thread, so the file was never unstaged. `git reset HEAD -- <path>` unstages it on its own, and it also works in a repository that has no commit yet: git falls back to the empty tree and the file returns to being untracked.
 - **Non-ASCII file names were shown as octal escapes.** The old parser read the v1 porcelain format, in which Git quotes a path that is not plain ASCII, so a file called `文档/说明.md` appeared as `"\346\226\207..."`. The panel now reads the `-z` format, where the path is written literally.
 
 ### Requirements

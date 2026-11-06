@@ -14,6 +14,12 @@ The allowlists below were transcribed from the Engine sources:
 * ``python/infernux/debug.py`` — the ``Debug`` class.
 * ``cpp/infernux/function/resources/.../InxGUIContext.h`` and
   ``python/infernux/engine/ui/BindingGUI.cpp`` — the ImGui context.
+
+They were checked against the upstream ``master`` branch on 2026-11-06.
+``input_uint`` and ``push_id_str`` were dropped from the allowlist in that
+pass: the Engine no longer declares them, so keeping them would let a
+call to a method that does not exist pass this test and then fail at
+runtime with the very ``AttributeError`` this test exists to prevent.
 """
 
 from pathlib import Path
@@ -48,7 +54,7 @@ CONTEXT_METHODS = frozenset({
     "checkbox", "checkbox_inspector", "checkbox_flags", "separator",
     "spacing", "dummy", "new_line", "same_line", "align_text_to_frame_padding",
     "progress_bar", "text_input", "text_area", "input_text_with_hint",
-    "input_int", "input_uint", "input_float", "int_slider", "float_slider",
+    "input_int", "input_float", "int_slider", "float_slider",
     "drag_float", "drag_int", "color_edit", "color_picker", "vector2_control",
     "vector3_control", "vector4_control", "input_text_multiline",
     # lists, combos and popups
@@ -72,7 +78,7 @@ CONTEXT_METHODS = frozenset({
     # style and state
     "push_style_color", "pop_style_color", "push_style_var_float",
     "push_style_var_vec2", "pop_style_var", "begin_disabled", "end_disabled",
-    "push_id", "push_id_str", "pop_id", "set_next_item_width",
+    "push_id", "pop_id", "set_next_item_width",
     "set_next_item_open", "set_next_item_allow_overlap", "set_next_window_size",
     "set_next_window_pos", "set_next_window_focus", "set_window_focus",
     "set_window_font_scale", "set_keyboard_focus_here", "set_cursor_pos_x",
