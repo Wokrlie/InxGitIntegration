@@ -56,7 +56,7 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
 ### Feather Icons
 
-面板用到的两个图标 —— `plus` 和 `minus` —— 派生自 Feather 项目，采用下面的 MIT License。其余图标均为 Lucide 原创作品，采用上面的 ISC License。
+面板用到的三个图标派生自 Feather 项目，采用下面的 MIT License：暂存按钮，其几何与 Feather 的 `plus` 图标一致；取消暂存按钮，其几何与 Feather 的 `minus` 图标一致；以及分支名旁边的 `chevron-down` 下拉箭头。其余图标均为 Lucide 原创作品，采用上面的 ISC License。
 
 ```
 The MIT License (MIT)
