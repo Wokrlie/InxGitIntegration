@@ -54,7 +54,7 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
 ### Feather Icons
 
-Two of the icons used by the panel — `plus` and `minus` — are derived from the Feather project and are covered by the MIT License reproduced below. Every other icon is original Lucide artwork under the ISC License above.
+Three of the icons used by the panel are derived from the Feather project and are covered by the MIT License reproduced below: the stage button, whose geometry is the Feather `plus` icon; the unstage button, whose geometry is the Feather `minus` icon; and the `chevron-down` arrow next to the branch name. Every other icon is original Lucide artwork under the ISC License above.
 
 ```
 The MIT License (MIT)

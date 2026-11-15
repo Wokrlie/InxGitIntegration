@@ -82,9 +82,28 @@ class IconAssetTests(unittest.TestCase):
                 self.assertIn(icon, self.paths)
 
     def test_action_icons_exist(self):
-        for icon in ("stage", "unstage", "stage-all", "refresh"):
+        for icon in ("stage", "unstage", "stage-all", "refresh", "git-branch", "chevron-down"):
             with self.subTest(icon=icon):
                 self.assertIn(icon, self.paths)
+
+    def test_new_icons_match_the_upstream_lucide_geometry(self):
+        """The licence notice covers the upstream artwork, so it has to match.
+
+        These two were compared element by element against the Lucide 0.544.0
+        sources. ``chevron-down`` is geometrically identical to the Feather
+        icon of the same name, which is why the notices list it.
+        """
+        upstream = {
+            "git-branch": (
+                '<path d="M15 6a9 9 0 0 0-9 9V3" />'
+                '<circle cx="18" cy="6" r="3" />'
+                '<circle cx="6" cy="18" r="3" />'
+            ),
+            "chevron-down": '<path d="m6 9 6 6 6-6" />',
+        }
+        for name, body in upstream.items():
+            with self.subTest(icon=name):
+                self.assertEqual(self.paths.get(name), body)
 
     def test_colour_conversion_produces_valid_hex(self):
         to_hex = self.module["_to_hex"]

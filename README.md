@@ -18,15 +18,18 @@ A source control panel for the [Infernux Engine](https://github.com/ChenlizheMe/
 - Vector icons for the stage, unstage, stage-all, and refresh controls, plus a status icon and a coloured status code on every file row.
 - Localized panel UI in English and Simplified Chinese.
 - The plugin's own licence and the notices for the bundled icon artwork ship with the plugin and are shown on the **License** page of the plugin information.
+- Branch management from the panel: a **Branches** section shows the current branch with its upstream, lists the local and remote branches, and switches, creates, renames, and deletes them. The selected branch also shows its commit log. Failures are reported in the Console.
 
 ## Requirements
 
 | Requirement | Version |
 | --- | --- |
 | Infernux Engine | `>=0.4.1,<0.5` |
-| Git | A recent version available on your `PATH` |
+| Git | `>=2.13` available on your `PATH` |
 
 Git is a **runtime requirement**. The panel shells out to the `git` executable; when it is missing, the panel shows a short notice instead of the file lists.
+
+Git 2.13 is the floor because the panel reads `git status --porcelain=v2` (needs 2.11) and the `%(upstream:short)` field of `git for-each-ref` (needs 2.13). Both are from 2016 and 2017, so any current distribution is well past them.
 
 The icons are vector artwork that the Editor rasterizes at runtime. That relies on the Engine's LunaSVG-backed texture loader, which is not part of the documented plugin API — if a future Engine release drops it, the panel falls back to text-only controls and everything else keeps working.
 

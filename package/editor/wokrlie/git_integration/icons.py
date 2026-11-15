@@ -6,6 +6,11 @@ that the copyright notice travels with redistributed copies, so it is
 reproduced in ``package/plugin_pages/license.md``, which ships inside the
 plugin archive as the plugin's License page.
 
+Three of the icons are geometrically identical to the Feather icons of the
+same name and therefore stay under the Feather MIT License: the stage button
+(``plus``), the unstage button (``minus``), and ``chevron-down``. That notice
+is reproduced on the same licence page.
+
 Every icon is stored as the inner markup of a 24x24 Lucide SVG. They are
 rasterized at runtime through the Engine's LunaSVG backend and uploaded as
 pinned ImGui textures, so one vector asset can be drawn in any colour without
@@ -40,6 +45,12 @@ ICON_PATHS: dict[str, str] = {
         '<path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16" />'
         '<path d="M8 16H3v5" />'
     ),
+    "git-branch": (
+        '<path d="M15 6a9 9 0 0 0-9 9V3" />'
+        '<circle cx="18" cy="6" r="3" />'
+        '<circle cx="6" cy="18" r="3" />'
+    ),
+    "chevron-down": '<path d="m6 9 6 6 6-6" />',
     # -- file status ----------------------------------------------------
     "added": (
         '<path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z" />'

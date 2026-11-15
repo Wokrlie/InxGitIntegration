@@ -14,9 +14,10 @@ Git must be installed and reachable on your `PATH`. When it is not, the panel sh
 
 ## The panel layout
 
-The normal view has four parts, from top to bottom:
+The normal view has five parts, from top to bottom:
 
 - **Source Control** — the header. The refresh icon on the right forces an immediate `git status`, skipping the refresh interval.
+- **Branches** — the branch the project is on, the list of branches, the actions that apply to the selected one, its commit log, and the row that creates a new branch.
 - **Staged Changes** — files that will be included in the next commit.
 - **Changes** — files that have been modified or deleted but are not staged yet, plus untracked files.
 - **Commit area** — a message box and a **Commit** button.
@@ -51,6 +52,25 @@ At the end of the row sits the action button for that file.
 
 The panel updates the file lists automatically, at most once per second. If you want to see the current state immediately — for example after running Git commands in a terminal — click the refresh icon in the header.
 
+## Managing branches
+
+The **Branches** section of the panel holds everything about branches. It opens the first time you open the panel, and you can fold it away like the file lists.
+
+- The first line is the branch the project is currently on, together with its upstream and how far it has drifted from it (`↑2 ↓1`).
+- The list below shows the local branches first and the remote ones after them. The current branch is marked with a dot, and a branch that tracks another one shows its upstream on the right.
+- Type in the filter box to narrow the list down. The filter only changes what is shown; it runs no command.
+- Click a branch to select it. The selected branch is marked with an arrow, and the actions below the list apply to it.
+- **Checkout** switches to the selected branch. The switch runs in the background, so the panel stays responsive even in a large repository.
+- **Rename** opens a field for the new name. The name is checked before it is used, and a branch name may contain `/`, for example `feature/new-panel`.
+- **Delete** removes the selected branch. Git refuses to delete a branch whose commits were never merged; **Force delete** removes it anyway, and the commits stay in git's reflog.
+- Type a name in the field at the bottom and click **Create** to make a branch from the current commit and switch to it.
+
+### The branch log
+
+Under the actions sits the **Branch log**, which lists the commits of the selected branch, newest first. Every row shows the short hash of the commit and its subject. The log holds the last 50 commits and is fetched in the background, so a branch with a long history does not slow the panel down. It is fetched again after every commit, so a commit you just made shows up right away.
+
+If a switch fails — usually because the working tree has changes that the other branch would overwrite — a dialog explains what went wrong in one sentence and points at the Console, which is where the full Git message is kept. The dialog offers **Open Console**, **Copy details**, and **Close**.
+
 ## Troubleshooting
 
 **The panel reports that Git is not usable.** Git is not installed, or it is not on the `PATH` the Editor was started with. Install Git and restart the Editor.
@@ -62,6 +82,8 @@ The panel updates the file lists automatically, at most once per second. If you 
 **A new file never leaves Changes.** Untracked files are marked `?` until they are staged.
 
 **The icons are missing.** The icons are vector artwork that the Editor rasterizes when the panel first opens. If the Editor was started without GPU support, or the textures could not be uploaded, the panel falls back to text-only controls and the status codes still work.
+
+**An operation fails and the panel looks unchanged.** The panel writes the reason to the Editor Console. Open the Console window to read it — the full Git output is kept there, so it stays available after the message box closes.
 
 ## Licences
 
@@ -77,4 +99,4 @@ https://github.com/Wokrlie/InxGitIntegration/blob/main/LICENSE
 
 ## Upcoming features
 
-Branch display and switching, discard-changes for unstaged files, Push/Pull controls, diff preview, and asynchronous `git status` execution are planned for future versions.
+Discard-changes for unstaged files, Push/Pull controls, and diff preview are planned for future versions.
